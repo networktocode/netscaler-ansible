@@ -1,0 +1,188 @@
+---
+  - name: PREPARE OBJECTS
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CREATE LB VSERVERS - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "{{ item.name }}"
+          ip_address: "{{ item.ip }}"
+          lbvserver_port: 80
+          service_type: "HTTP"
+          partition: "{{ item.partition | default('default') }}"
+        with_items:
+          - name: "vserver01"
+            ip: "10.1.1.21"
+          - name: "vserver02"
+            ip: "10.1.1.22"
+          - name: "vserver01"
+            ip: "10.1.1.21"
+            partition: "LAB"
+
+      - name: CREATE SERVICE GROUPS - CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "{{ item.servicegroup }}"
+          service_type: "HTTP"
+          partition: "{{ item.partition | default('default')}}"
+        with_items:
+          - servicegroup: "servicegroup01"
+          - servicegroup: "servicegroup02"
+          - servicegroup: "servicegroup01"
+            partition: "LAB"
+
+
+  - name: UNITTEST
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CREATE SERVICE GROUP TO VSERVER BINDING - CHANGE
+        netscaler_lbvserver_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "vserver01"
+          servicegroup_name: "servicegroup01"
+
+      - name: CREATE SERVICE GROUP TO VSERVER BINDING AGAIN - NO CHANGE
+        netscaler_lbvserver_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "vserver01"
+          servicegroup_name: "servicegroup01"
+
+      - name: CREATE SERVICE GROUP TO VSERVER BINDING IN PARTITION - CHANGE
+        netscaler_lbvserver_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "vserver01"
+          servicegroup_name: "servicegroup01"
+          partition: "LAB"
+
+      - name: REMOVE SERVICE GROUP TO VSERVER BINDING - CHANGE
+        netscaler_lbvserver_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "vserver01"
+          servicegroup_name: "servicegroup01"
+          partition: "LAB"
+          state: "absent"
+
+      - name: REMOVE SERVICE GROUP TO VSERVER BINDING AGAIN - NO CHANGE
+        netscaler_lbvserver_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "vserver01"
+          servicegroup_name: "servicegroup01"
+          partition: "LAB"
+          state: "absent"
+
+
+      - name: CREATE SERVICE GROUP TO VSERVER BINDING NO VSERVER NAME - FAIL
+        netscaler_lbvserver_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "servicegroup01"
+        ignore_errors: yes
+
+      - name: CREATE SERVICE GROUP TO VSERVER BINDING NO SERVICE GROUP NAME - FAIL
+        netscaler_lbvserver_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "vserver01"
+        ignore_errors: yes
+
+      - name: CREATE SERVICE GROUP TO VSERVER BINDING VSERVER DOES NOT EXIST - FAIL
+        netscaler_lbvserver_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "vserver"
+          servicegroup_name: "servicegroup01"
+        ignore_errors: yes
+
+      - name: CREATE SERVICE GROUP TO VSERVER BINDING SERVICE GROUP DOES NOT EXIST - FAIL
+        netscaler_lbvserver_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "vserver01"
+          servicegroup_name: "servicegroup"
+        ignore_errors: yes
+
+
+
+  - name: UNITTEST CLEANUP
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CLEANUP BINDINGS - CHANGE
+        netscaler_lbvserver_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          state: "absent"
+          lbvserver_name: "{{ item.vserver }}"
+          servicegroup_name: "{{ item.servicegroup }}"
+          partition: "{{ item.partition | default('default') }}"
+        with_items:
+          - vserver: "vserver01"
+            servicegroup: "servicegroup01"
+          - vserver: "vserver01"
+            servicegroup: "servicegroup01"
+          - vserver: "vserver01"
+            servicegroup: "servicegroup01"
+            partition: "LAB"
+
+
+
+  - name: PREPARE OBJECTS CLEANUP
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CLEANUP SERVERS - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "{{ item.name }}"
+          partition: "{{ item.partition | default('default') }}"
+          state: "absent"
+        with_items:
+          - name: "vserver01"
+          - name: "vserver02"
+          - name: "vserver01"
+            partition: "LAB"
+
+      - name: CLEANUP SERVICE GROUPS - CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "{{ item.servicegroup }}"
+          partition: "{{ item.partition | default('default')}}"
+          state: "absent"
+        with_items:
+          - servicegroup: "servicegroup01"
+          - servicegroup: "servicegroup02"
+          - servicegroup: "servicegroup01"
+            partition: "LAB"

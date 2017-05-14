@@ -1,0 +1,105 @@
+---
+  - name: UNITTEST
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: GET ALL FACTS - NO CHANGE
+        netscaler_facts:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+        register: facts
+
+      - name: ASSERT ALL KEYS ALL PRESENT
+        assert:
+          that:
+            - "'ntc_system_data' in facts"
+            - "'ntc_hardware_data' in facts"
+            - "'ntc_interface_data' in facts"
+            - "'ntc_lbvserver_stats' in facts"
+            - "'ntc_config' in facts"
+            - "'ntc_server_config' in facts"
+            - "'ntc_service_group_config' in facts"
+            - "'ntc_lbvserver_config' in facts"
+            - "'ntc_monitor_config' in facts"
+
+      - name: GET BASE FACTS - NO CHANGE
+        netscaler_facts:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          gather_subset: "!all"
+        register: facts
+
+      - name: ASSERT ONLY THE SYSTEM_DATA KEY IS PRESENT
+        assert:
+          that:
+            - "'ntc_system_data' in facts"
+            - "'ntc_hardware_data' not in facts"
+            - "'ntc_interface_data' not in facts"
+            - "'ntc_lbvserver_stats' not in facts"
+            - "'ntc_config' not in facts"
+            - "'ntc_server_config' not in facts"
+            - "'ntc_service_group_config' not in facts"
+            - "'ntc_lbvserver_config' not in facts"
+            - "'ntc_monitor_config' not in facts"
+
+      - name: GET PARTIAL FACTS ASSERT FACTS - NO CHANGE
+        netscaler_facts:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          gather_subset:
+            - "lbvserver_config"
+            - "monitor_config"
+            - "hardware_data"
+        register: facts
+
+      - name: ASSERT ONLY THE SYSTEM_DATA, LBVSERVER_CONFIG, MONITOR_CONFIG, AND HARDWARE_DATA KEYS ARE PRESENT
+        assert:
+          that:
+            - "'ntc_system_data' in facts"
+            - "'ntc_hardware_data' in facts"
+            - "'ntc_interface_data' not in facts"
+            - "'ntc_lbvserver_stats' not in facts"
+            - "'ntc_config' not in facts"
+            - "'ntc_server_config' not in facts"
+            - "'ntc_service_group_config' not in facts"
+            - "'ntc_lbvserver_config' in facts"
+            - "'ntc_monitor_config' in facts"
+
+      - name: GET PARTIAL FACTS NEGATE FACTS - NO CHANGE
+        netscaler_facts:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          gather_subset:
+            - "!hardware_data"
+            - "!config"
+            - "!server_config"
+            - "!lbvserver_stats"
+        register: facts
+
+      - name: ASSERT ALL KEYS ARE PRESENT EXCEPT FOR HARDWARE_DATA, CONFIG, SERVER_CONFIG, AND LBVSERVER_STATS
+        assert:
+          that:
+            - "'ntc_system_data' in facts"
+            - "'ntc_hardware_data' not in facts"
+            - "'ntc_interface_data' in facts"
+            - "'ntc_lbvserver_stats' not in facts"
+            - "'ntc_config' not in facts"
+            - "'ntc_server_config' not in facts"
+            - "'ntc_service_group_config' in facts"
+            - "'ntc_lbvserver_config' in facts"
+            - "'ntc_monitor_config' in facts"
+
+      - name: GET CONFIG FACTS FULL CONFIG - NO CHANGE
+        netscaler_facts:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          gather_subset:
+            - "config"
+          config_scope: "true"

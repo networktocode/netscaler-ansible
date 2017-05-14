@@ -1,0 +1,398 @@
+---
+  - name: UNITTEST
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CONFIG LB VSERVER - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          lbvserver_name: "lbvserver01"
+          ip_address: "10.10.20.21" 
+          service_type: "HTTP"
+          comment: "Comments Work"
+          lbmethod: "ROUNDROBIN"
+          lbvserver_port: 80
+          persistence: "SRCIPDESTIP"
+
+      - name: CONFIG LB VSERVER AGAIN - NO CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver01"
+          ip_address: "10.10.20.21" 
+          service_type: "HTTP"
+          comment: "Comments Work"
+          lbmethod: "ROUNDROBIN"
+          lbvserver_port: 80
+          persistence: "SRCIPDESTIP"
+
+      - name: CONFIG LB VSERVER AGAIN LESS PARAMS - NO CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver01"
+          ip_address: "10.10.20.21" 
+          service_type: "HTTP"
+
+      - name: CONFIG LB VSERVER SAME IP DIFFERENT PORT AND SERVICE - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          lbvserver_name: "lbvserver20"
+          ip_address: "10.10.20.21" 
+          service_type: "SSL"
+          comment: "Comments Work"
+          lbmethod: "ROUNDROBIN"
+          lbvserver_port: 443
+          persistence: "SRCIPDESTIP"
+
+      - name: CONFIG LB VSERVER IN PARTITION - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver01"
+          ip_address: "10.10.30.21"
+          service_type: "SSL_BRIDGE"
+          lbvserver_port: 443
+          partition: "LAB" 
+
+      - name: UPDATE LB VSERVER AND DISABLE- CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver01"
+          comment: "Comments Still Work"
+          client_timeout: 300
+          lbmethod: "ROUNDROBIN"
+          lbvserver_state: "disabled"
+          persistence: "SRCIPDESTIP"
+          partition: "LAB" 
+
+      - name: CONFIG LB VSERVER IN TRAFFIC DOMAIN - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver02"
+          ip_address: "10.10.20.22"
+          lbvserver_port: 22
+          service_type: "TCP"
+          traffic_domain: 10
+
+      - name: CONFIG LB VSERVER IN TRAFFIC DOMAIN WITH DUPLICATE IP FROM DEFAULT TRAFFIC DOMAIN - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver100"
+          ip_address: "10.10.20.21"
+          lbvserver_port: 80
+          service_type: "HTTP"
+          traffic_domain: 10
+
+      - name: CONFIG BACKUP LB VSERVER - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver03"
+          service_type: "SSL_BRIDGE"
+
+      - name: CONFIG PRIMARY LB VSERVER - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver04"
+          ip_address: "10.10.20.24"
+          service_type: "SSL_BRIDGE"
+          backup_lbvserver: "lbvserver03"
+          conn_failover: "STATEFUL"
+          lbmethod: "ROUNDROBIN"
+          lbvserver_port: 443
+          persistence: "SRCIPDESTIP"
+
+      - name: DISABLE LB VSERVER - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver04"
+          lbvserver_state: "disabled" 
+
+      - name: ENABLE LB VSERVER AND CHANGE FAILOVER TYPE - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver04" 
+          lbvserver_state: "enabled"
+          conn_failover: "STATEFUL"
+
+      - name: CONFIG LB VSERVER ANY SERVICE - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver05"
+          ip_address: "10.10.20.25"
+          service_type: "ANY"
+          conn_failover: "STATEFUL"
+          lbmethod: "ROUNDROBIN"
+          lbvserver_port: "*"
+          persistence: "SRCIPDESTIP"
+
+      - name: CONFIG LB VSERVER ANY SERVICE AGAIN - NO CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver05"
+          ip_address: "10.10.20.25"
+          service_type: "ANY"
+          conn_failover: "STATEFUL"
+          lbmethod: "ROUNDROBIN"
+          lbvserver_port: "*"
+          persistence: "SRCIPDESTIP"
+
+      - name: DELETE LB VSERVER - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver02"
+          state: absent
+
+      - name: DELETE LB VSERVER AGAIN - NO CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver02"
+          state: absent
+
+      - name: CONFIG LB VSERVER NO NAME - FAIL
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          ip_address: "10.10.20.100"
+          service_type: "HTTP"
+        ignore_errors: yes
+        tags: no_name
+
+      - name: CONFIG LB VSERVER NO IP ADDRESS WITH PORT - FAIL
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver10"
+          lbvserver_port: 8080
+          service_type: "HTTP" 
+        ignore_errors: yes
+        tags: no_ip
+
+      - name: CONFIG LB VSERVER NO SERVICE TYPE - FAIL
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver10"
+          lbvserver_port: 443
+          ip_address: "10.10.20.100"
+        ignore_errors: yes
+        tags: no_type
+
+      - name: CONFIG LB VSERVER DUPLICATE NAME - FAIL
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver01"
+          ip_address: "10.10.20.100"
+          service_type: "HTTP"
+        ignore_errors: yes
+        tags: dup_name
+
+      - name: CONFIG LB VSERVER DUPLICATE IP AND PORT - FAIL
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver10"
+          lbvserver_port: 80
+          ip_address: "10.10.20.21"
+          service_type: "TCP"
+        ignore_errors: yes
+        tags: dup_ip
+
+      - name: CONFIG LB VSERVER INVALID TRAFFIC DOMAIN - FAIL
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver10"
+          ip_address: "10.10.20.100"
+          lbvserver_port: 22
+          service_type: "TCP"
+          traffic_domain: 20
+        ignore_errors: yes
+        tags: bad_td
+
+      - name: CONFIG LB VSERVER BAD SERVICE TYPE - FAIL
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver10"
+          ip_address: "10.10.20.100"
+          service_type: "FAKE"
+        ignore_errors: yes
+        tags: bad_type
+
+      - name: CONFIG LB VSERVER BAD LB METHOD - FAIL
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver10"
+          ip_address: "10.10.20.100"
+          service_type: "TCP"
+          lbmethod: "FAKE"
+        ignore_errors: yes
+        tags: bad_method
+
+      - name: CONFIG LB VSERVER BAD PERSISTENCE TYPE - FAIL
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver10"
+          ip_address: "10.10.20.100"
+          service_type: "HTTP"
+          lbmethod: "ROUNDROBIN"
+          persistence: "FAKE"
+        ignore_errors: yes
+        tags: bad_persist
+
+      - name: CONFIG LB VSERVER PORT * ANY PORT NOT * - FAIL
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver10"
+          lbvserver_port: "*"
+          ip_address: "10.10.20.100"
+          service_type: "TCP"
+          lbmethod: "ROUNDROBIN"
+        ignore_errors: yes
+        tags: bad_type
+
+      - name: CONFIG LB VSERVER IP 0.0.0.0 PORT NOT 0 - FAIL
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver10"
+          lbvserver_port: "22"
+          ip_address: "0.0.0.0"
+          service_type: "ANY"
+          lbmethod: "ROUNDROBIN"
+        ignore_errors: yes
+        tags: bad_port
+
+      - name: CONFIG LB VSERVER USEABLE IP PORT 0 - FAIL
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver10"
+          lbvserver_port: "0"
+          ip_address: "10.10.20.100"
+          service_type: "TCP"
+          lbmethod: "ROUNDROBIN"
+        ignore_errors: yes
+        tags: bad_port
+
+      - name: CHANGE LB VSERVER SERVICE TYPE - FAIL
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver01"
+          ip_address: "10.10.20.21" 
+          service_type: "SSL_BRIDGE"
+          lbmethod: "ROUNDROBIN"
+          lbvserver_port: 80
+          persistence: "SRCIPDESTIP"
+        ignore_errors: yes
+        tags: change_type
+
+      - name: CHANGE LB VSERVER TRAFFIC DOMAIN - FAIL
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver01"
+          ip_address: "10.10.20.21" 
+          service_type: "HTTP"
+          lbvserver_port: 80
+          traffic_domain: 10
+        ignore_errors: yes
+        tags: change_td
+
+      - name: CHANGE LB VSERVER PORT - FAIL
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver01"
+          ip_address: "10.10.20.21" 
+          service_type: "HTTP"
+          lbvserver_port: 443
+        ignore_errors: yes
+        tags: change_port
+
+
+
+  - name: UNITTEST CLEANUP
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+    tags: cleanup
+
+    tasks:
+      - name: CLEANUP LB VSERVERS - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          state: "absent"
+          lbvserver_name: "{{ item }}"
+        with_items:
+          - lbvserver01
+          - lbvserver02
+          - lbvserver03
+          - lbvserver04
+          - lbvserver05
+          - lbvserver10
+          - lbvserver20
+          - lbvserver100
+
+      - name: CLEANUP LB VSERVERS IN PARTITION - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          state: "absent"
+          lbvserver_name: "lbvserver01"
+          partition: "LAB"

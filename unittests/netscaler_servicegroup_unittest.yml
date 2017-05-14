@@ -1,0 +1,219 @@
+---
+  - name: UNITTEST
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CONFIG SERVICE GROUP - CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          max_client: 20
+          max_req: 100
+          server_timeout: 300
+          service_type: "TCP"
+          servicegroup_name: "servicegroup01"
+
+      - name: CONFIG SERVICE GROUP AGAIN - NO CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          max_client: 20
+          max_req: 100
+          server_timeout: 300
+          service_type: "TCP"
+          servicegroup_name: "servicegroup01"
+
+      - name: CONFIG SERVICE GROUP AGAIN LESS PARAMS - NO CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          service_type: "TCP"
+          servicegroup_name: "servicegroup01"
+
+      - name: CONFIG SERVICE GROUP IN PARTITION - CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          max_client: 20
+          max_req: 100
+          server_timeout: 300
+          service_type: "TCP"
+          servicegroup_name: "servicegroup01"
+          partition: "LAB" 
+
+      - name: CONFIG SERVICE GROUP WITH A COMMENT - CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          service_type: "HTTP"
+          servicegroup_name: "servicegroup02"
+          comment: "Comments Work"
+
+      - name: CONFIG SERVICE GROUP IN TRAFFIC DOMAIN - CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          max_client: 20
+          max_req: 100
+          server_timeout: 300
+          service_type: "TCP"
+          servicegroup_name: "servicegroup03"
+          traffic_domain: 10
+
+      - name: CONFIG SERVICE GROUP IN A DISABLED STATE - CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          max_client: 20
+          max_req: 100
+          server_timeout: 300
+          service_type: "TCP"
+          servicegroup_name: "servicegroup04"
+          servicegroup_state: "disabled"
+
+      - name: ADD A MODIFY SERVICE GROUP PARAMS AND COMMENT - CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          max_client: 20
+          max_req: 100
+          server_timeout: 300
+          service_type: "HTTP"
+          servicegroup_name: "servicegroup02"
+          comment: "Comments Still Work" 
+
+      - name: DISABLE A SERVICE GROUP - CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "servicegroup01"
+          servicegroup_state: "disabled"
+
+      - name: ENABLE SERVICE GROUP AND MODIFY PARAMS - CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "servicegroup01"
+          max_client: 30
+          max_req: 110
+          servicegroup_state: "enabled"
+
+      - name: DELETE SERVICE GROUP - CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "servicegroup01"
+          state: "absent"
+
+      - name: DELETE SERVICE GROUP - NO CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "servicegroup01"
+          state: "absent"
+
+      - name: CONFIG SERVICE GROUP WITHOUT A NAME - FAIL
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          service_type: "HTTP"
+        ignore_errors: yes
+        tags: no_name
+
+      - name: CONFIG SERVICE GROUP WITHOUT A SERVICE TYPE - FAIL
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "servicegroup10"
+        ignore_errors: yes
+        tags: no_type
+
+      - name: CONFIG SERVICE GROUP DUPLICATE NAME - FAIL
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          service_type: "TCP"
+          servicegroup_name: "servicegroup02"
+        ignore_errors: yes
+        tags: dup_name
+
+      - name: CONFIG SERVICE GROUP IN NON-EXISTENT TRAFFIC DOMAIN - FAIL
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          service_type: "TCP"
+          servicegroup_name: "servicegroup01"
+          traffic_domain: 20
+        ignore_errors: yes
+        tags: bad_td
+ 
+      - name: CONFIG SERVICE GROUP WITH INVALID SERICE TYPE - FAIL
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          service_type: "FAKE"
+          servicegroup_name: "servicegroup01"
+        ignore_errors: yes
+        tags: bad_type
+ 
+      - name: CONFIG SERVICE GROUP WITH INVALID MAX CLIENT - FAIL
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          max_client: 2000000000000000000
+          service_type: "TCP"
+          servicegroup_name: "servicegroup01"
+        ignore_errors: yes
+        tags: bad_max
+
+
+
+  - name: UNITTEST CLEANUP
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CLEANUP SERVICE GROUP - CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          state: "absent"
+          servicegroup_name: "{{ item }}"
+        with_items:
+          - servicegroup01
+          - servicegroup02
+          - servicegroup03
+          - servicegroup04
+        tags: cleanup
+
+      - name: CLEANUP SERVICE GROUP IN PARTITION - CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          state: "absent"
+          servicegroup_name: "servicegroup01"
+          partition: "LAB"
+        tags: cleanup

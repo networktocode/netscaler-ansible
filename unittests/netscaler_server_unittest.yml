@@ -1,0 +1,212 @@
+---
+  - name: UNITTEST
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CONFIG SERVER - CHANGE
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          ip_address: "10.1.1.21"
+
+      - name: CONFIG SERVER AGAIN - NO CHANGE
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          ip_address: "10.1.1.21"
+
+      - name: ADD COMMENT TO SERVER - CHANGE
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          ip_address: "10.1.1.21"
+          comment: "Comments Work"
+
+      - name: CONFIG SERVER IN LAB PARTITION - CHANGE
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server02"
+          ip_address: "10.1.1.22"
+          partition: "LAB"
+
+      - name: CONFIG SERVER IN DISABLED STATE - CHANGE
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server03"
+          ip_address: "10.1.1.23"
+          server_state: "disabled"
+
+      - name: ENABLE SERVER IN DISABLED STATE - CHANGE
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server03"
+          server_state: "enabled"
+
+      - name: DISABLE SERVER IN ENABLED STATE - CHANGE
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          ip_address: "10.1.1.21"
+          server_state: "disabled"
+
+      - name: CONFIG SERVER WITH A COMMENT - CHANGE
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server04"
+          ip_address: "10.1.1.24"
+          comment: "Comments Still Work"
+
+      - name: MODIFY A SERVER'S COMMENT - CHANGE
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server04"
+          comment: "Comments are Changeable."
+
+      - name: DELETE SERVER - CHANGE
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          ip_address: "10.1.1.21"
+          state: "absent"
+
+      - name: DELETE SERVER AGAIN - NO CHANGE
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          ip_address: "10.1.1.21"
+          state: "absent"
+
+      - name: CONFIG SERVER IN TRAFFIC DOMAIN - CHANGE
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          ip_address: "10.1.1.21"
+          traffic_domain: 10
+
+      - name: CONFIG SERVER IN TRAFFIC DOMAIN WITH DUPLICATE IP FROM DEFAULT TRAFFIC DOMAIN - CHANGE
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server05"
+          ip_address: "10.1.1.22"
+          traffic_domain: 10
+
+      - name: CONFIG SERVER WITH DUPLICATE NAME - FAIL
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server04"
+          ip_address: "10.1.1.100"
+        ignore_errors: yes
+        tags: dup_name
+
+      - name: CONFIG SERVER WITH DUPLICATE IP - FAIL
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server25"
+          ip_address: "10.1.1.24"
+        ignore_errors: yes
+        tags: dup_ip
+
+      - name: CONFIG SERVER WITHOUT NAME - FAIL
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          ip_address: "10.1.1.25"
+        ignore_errors: yes
+        tags: no_name
+
+      - name: CONFIG SERVER WITHOUT IP - FAIL
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server05"
+        ignore_errors: yes
+        tags: no_ip
+
+      - name: CONFIG SERVER IN PARTITION AND NON-EXISTENT TRAFFIC DOMAIN - FAIL
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          ip_address: "10.1.1.21"
+          partition: "LAB"
+          traffic_domain: 10
+        ignore_errors: yes
+        tags: bad_td
+
+      - name: CONFIG SERVER IN TRAFFIC DOMAIN WITH DUPLICATE NAME - FAIL
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          ip_address: "10.1.1.100"
+          traffic_domain: 10
+        ignore_errors: yes
+        tags: dup_name_td
+
+
+
+  - name: UNITTEST CLEANUP
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: DELETE SERVERS
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "{{ item }}"
+          state: "absent"
+        with_items:
+          - "server01"
+          - "server03"
+          - "server04"
+          - "server05"
+        tags: cleanup
+
+      - name: DELETE SEVER IN PARTITION
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server02"
+          partition: "LAB"
+          state: "absent"
+        tags: cleanup

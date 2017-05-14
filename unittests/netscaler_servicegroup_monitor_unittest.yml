@@ -1,0 +1,183 @@
+---
+  - name: PREPARE OBJECTS
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CREATE MONITORS - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          monitor_name: "{{ item.name }}"
+          monitor_type: HTTP
+          partition: "{{ item.partition | default('default') }}"
+        with_items:
+          - name: "monitor01"
+          - name: "monitor02"
+          - name: "monitor01"
+            partition: "LAB"
+
+      - name: CREATE SERVICE GROUPS - CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "{{ item.servicegroup }}"
+          service_type: HTTP
+          partition: "{{ item.partition | default('default')}}"
+        with_items:
+          - servicegroup: "servicegroup01"
+          - servicegroup: "servicegroup02"
+          - servicegroup: "servicegroup01"
+            partition: "LAB"
+
+
+  - name: UNITTEST
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CREATE SERVICE GROUP TO MONITOR BINDING - CHANGE
+        netscaler_servicegroup_monitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          monitor_name: "monitor01"
+          servicegroup_name: "servicegroup01"
+
+      - name: CREATE SERVICE GROUP TO MONITOR BINDING AGAIN - NO CHANGE
+        netscaler_servicegroup_monitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          monitor_name: "monitor01"
+          servicegroup_name: "servicegroup01"
+
+      - name: CREATE SERVICE GROUP TO MONITOR BINDING IN PARTITION - CHANGE
+        netscaler_servicegroup_monitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          monitor_name: "monitor01"
+          servicegroup_name: "servicegroup01"
+          partition: "LAB"
+
+      - name: REMOVE SERVICE GROUP TO MONITOR BINDING - CHANGE
+        netscaler_servicegroup_monitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          monitor_name: "monitor01"
+          servicegroup_name: "servicegroup01"
+          partition: "LAB"
+          state: "absent"
+
+      - name: REMOVE SERVICE GROUP TO MONITOR BINDING AGAIN - NO CHANGE
+        netscaler_servicegroup_monitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          monitor_name: "monitor01"
+          servicegroup_name: "servicegroup01"
+          partition: "LAB"
+          state: "absent"
+
+      - name: CREATE SERVICE GROUP TO MONITOR BINDING NO MONITOR NAME - FAIL
+        netscaler_servicegroup_monitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "servicegroup01"
+        ignore_errors: yes
+
+      - name: CREATE SERVICE GROUP TO MONITOR BINDING NO SERVICE GROUP NAME - FAIL
+        netscaler_servicegroup_monitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          monitor_name: "monitor01"
+        ignore_errors: yes
+
+      - name: CREATE SERVICE GROUP TO MONITOR BINDING MONITOR DOES NOT EXIST - FAIL
+        netscaler_servicegroup_monitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          monitor_name: "monitor"
+          servicegroup_name: "servicegroup01"
+        ignore_errors: yes
+
+      - name: CREATE SERVICE GROUP TO MONITOR BINDING SERVICE GROUP DOES NOT EXIST - FAIL
+        netscaler_servicegroup_monitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          monitor_name: "monitor01"
+          servicegroup_name: "servicegroup"
+        ignore_errors: yes
+
+
+
+  - name: UNITTEST CLEANUP
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CLEANUP BINDINGS - CHANGE
+        netscaler_servicegroup_monitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          state: "absent"
+          monitor_name: "{{ item.monitor }}"
+          servicegroup_name: "{{ item.servicegroup }}"
+          partition: "{{ item.partition | default('default') }}"
+        with_items:
+          - monitor: "monitor01"
+            servicegroup: "servicegroup01"
+          - monitor: "monitor01"
+            servicegroup: "servicegroup01"
+          - monitor: "monitor01"
+            servicegroup: "servicegroup01"
+            partition: "LAB"
+
+
+
+  - name: PREPARE OBJECTS CLEANUP
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CLEANUP MONITORS - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          monitor_name: "{{ item.name }}"
+          partition: "{{ item.partition | default('default') }}"
+          state: "absent"
+        with_items:
+          - name: "monitor01"
+          - name: "monitor02"
+          - name: "monitor01"
+            partition: "LAB"
+
+      - name: CLEANUP SERVICE GROUPS - CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "{{ item.servicegroup }}"
+          service_type: HTTP
+          partition: "{{ item.partition | default('default')}}"
+          state: "absent"
+        with_items:
+          - servicegroup: "servicegroup01"
+          - servicegroup: "servicegroup02"
+          - servicegroup: "servicegroup01"
+            partition: "LAB"

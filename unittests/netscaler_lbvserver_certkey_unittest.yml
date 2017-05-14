@@ -1,0 +1,160 @@
+---
+  - name: PREPARE OBJECTS
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CREATE LB VSERVERS - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "{{ item.name }}"
+          ip_address: "{{ item.ip }}"
+          lbvserver_port: 80
+          service_type: "SSL"
+          partition: "{{ item.partition | default('default') }}"
+        with_items:
+          - name: "vserver01"
+            ip: "10.1.1.21"
+          - name: "vserver02"
+            ip: "10.1.1.22"
+          - name: "vserver01"
+            ip: "10.1.1.21"
+            partition: "LAB"
+
+
+  - name: UNITTEST
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CREATE VSERVER BINDING TO CERT KEY BINDING - CHANGE
+        netscaler_lbvserver_certkey:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          vserver_name: "vserver01"
+          cert_key_name: "test"
+
+      - name: CREATE VSERVER BINDING TO CERT KEY BINDING AGAIN - NO CHANGE
+        netscaler_lbvserver_certkey:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          vserver_name: "vserver01"
+          cert_key_name: "test"
+
+      - name: CREATE VSERVER BINDING TO CERT KEY BINDING IN PARTITION - CHANGE
+        netscaler_lbvserver_certkey:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          vserver_name: "vserver01"
+          cert_key_name: "test"
+          partition: "LAB"
+
+      - name: REMOVE VSERVER TO CERT KEY BINDING - CHANGE
+        netscaler_lbvserver_certkey:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          vserver_name: "vserver01"
+          cert_key_name: "test"
+          partition: "LAB"
+          state: "absent"
+
+      - name: REMOVE VSERVER TO CERT KEY BINDING AGAIN - NO CHANGE
+        netscaler_lbvserver_certkey:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          vserver_name: "vserver01"
+          cert_key_name: "test"
+          partition: "LAB"
+          state: "absent"
+
+      - name: CREATE VSERVER TO CERT KEY BINDING NO VSERVER NAME - FAIL
+        netscaler_lbvserver_certkey:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          cert_key_name: "test"
+        ignore_errors: yes
+
+      - name: CREATE VSERVER TO CERT KEY BINDING NO CERT KEY NAME - FAIL
+        netscaler_lbvserver_certkey:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          vserver_name: "vserver01"
+        ignore_errors: yes
+
+      - name: CREATE VSERVER TO CERT KEY BINDING VSERVER DOES NOT EXIST - FAIL
+        netscaler_lbvserver_certkey:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          vserver_name: "vserver"
+          cert_key_name: "test"
+        ignore_errors: yes
+
+      - name: CREATE VSERVER TO CERT KEY BINDING CERT KEY DOES NOT EXIST - FAIL
+        netscaler_lbvserver_certkey:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          vserver_name: "vserver01"
+          cert_key_name: "cert"
+        ignore_errors: yes
+
+
+
+  - name: UNITTEST CLEANUP
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CLEANUP BINDINGS - CHANGE
+        netscaler_lbvserver_certkey:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          state: "absent"
+          vserver_name: "{{ item.vserver }}"
+          cert_key_name: "{{ item.servicegroup }}"
+          partition: "{{ item.partition | default('default') }}"
+        with_items:
+          - vserver: "vserver01"
+            servicegroup: "test"
+          - vserver: "vserver01"
+            servicegroup: "test"
+          - vserver: "vserver01"
+            servicegroup: "test"
+            partition: "LAB"
+
+
+
+  - name: PREPARE OBJECTS CLEANUP
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+    tags: cleanup
+
+    tasks:
+      - name: CLEANUP VSERVERS - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "{{ item.name }}"
+          partition: "{{ item.partition | default('default') }}"
+          state: "absent"
+        with_items:
+          - name: "vserver01"
+          - name: "vserver02"
+          - name: "vserver01"
+            partition: "LAB"

@@ -1,0 +1,221 @@
+---
+  - name: PREPARE OBJECTS
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CREATE SERVERS - CHANGE
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "{{ item.name }}"
+          ip_address: "{{ item.ip }}"
+          partition: "{{ item.partition | default('default') }}"
+        with_items:
+          - name: "server01"
+            ip: "10.1.1.21"
+          - name: "server02"
+            ip: "10.1.1.22"
+          - name: "server01"
+            ip: "10.1.1.21"
+            partition: "LAB"
+
+      - name: CREATE SERVICE GROUPS - CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "{{ item.servicegroup }}"
+          service_type: HTTP
+          partition: "{{ item.partition | default('default')}}"
+        with_items:
+          - servicegroup: "servicegroup01"
+          - servicegroup: "servicegroup02"
+          - servicegroup: "servicegroup01"
+            partition: "LAB"
+
+
+  - name: UNITTEST
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CREATE SERVICE GROUP TO SERVER BINDING - CHANGE
+        netscaler_servicegroup_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          servicegroup_name: "servicegroup01"
+          server_port: 80
+
+      - name: CREATE SERVICE GROUP TO SERVER BINDING AGAIN - NO CHANGE
+        netscaler_servicegroup_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          servicegroup_name: "servicegroup01"
+          server_port: 80
+
+      - name: ADD SERVICE GROUP TO SERVER BINDING WITH NEW PORT - CHANGE
+        netscaler_servicegroup_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          servicegroup_name: "servicegroup01"
+          server_port: 443
+
+      - name: CREATE SERVICE GROUP TO SERVER BINDING IN PARTITION - CHANGE
+        netscaler_servicegroup_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          servicegroup_name: "servicegroup01"
+          server_port: 80
+          partition: "LAB"
+
+      - name: REMOVE SERVICE GROUP TO SERVER BINDING - CHANGE
+        netscaler_servicegroup_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          servicegroup_name: "servicegroup01"
+          server_port: 80
+          partition: "LAB"
+          state: "absent"
+
+      - name: REMOVE SERVICE GROUP TO SERVER BINDING AGAIN - NO CHANGE
+        netscaler_servicegroup_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          servicegroup_name: "servicegroup01"
+          server_port: 80
+          partition: "LAB"
+          state: "absent"
+
+      - name: CREATE SERVICE GROUP TO SERVER BINDING NO PORT - FAIL
+        netscaler_servicegroup_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          servicegroup_name: "servicegroup01"
+        ignore_errors: yes
+
+      - name: CREATE SERVICE GROUP TO SERVER BINDING NO SERVER NAME - FAIL
+        netscaler_servicegroup_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "servicegroup01"
+          server_port: 80
+        ignore_errors: yes
+
+      - name: CREATE SERVICE GROUP TO SERVER BINDING NO SERVICE GROUP NAME - FAIL
+        netscaler_servicegroup_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          server_port: 80
+        ignore_errors: yes
+
+      - name: CREATE SERVICE GROUP TO SERVER BINDING SERVER DOES NOT EXIST - FAIL
+        netscaler_servicegroup_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server"
+          servicegroup_name: "servicegroup01"
+          server_port: 80
+        ignore_errors: yes
+
+      - name: CREATE SERVICE GROUP TO SERVER BINDING SERVICE GROUP DOES NOT EXIST - FAIL
+        netscaler_servicegroup_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          servicegroup_name: "servicegroup"
+          server_port: 80
+        ignore_errors: yes
+
+
+
+  - name: UNITTEST CLEANUP
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CLEANUP BINDINGS - CHANGE
+        netscaler_servicegroup_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          state: "absent"
+          server_name: "{{ item.server }}"
+          servicegroup_name: "{{ item.servicegroup }}"
+          server_port: "{{ item.port }}"
+          partition: "{{ item.partition | default('default') }}"
+        with_items:
+          - server: "server01"
+            servicegroup: "servicegroup01"
+            port: 80
+          - server: "server01"
+            servicegroup: "servicegroup01"
+            port: 443
+          - server: "server01"
+            servicegroup: "servicegroup01"
+            port: 80
+            partition: "LAB"
+
+
+
+  - name: PREPARE OBJECTS CLEANUP
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CLEANUP SERVERS - CHANGE
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "{{ item.name }}"
+          ip_address: "{{ item.ip }}"
+          partition: "{{ item.partition | default('default') }}"
+          state: "absent"
+        with_items:
+          - name: "server01"
+            ip: "10.1.1.21"
+          - name: "server02"
+            ip: "10.1.1.22"
+          - name: "server01"
+            ip: "10.1.1.21"
+            partition: "LAB"
+
+      - name: CLEANUP SERVICE GROUPS - CHANGE
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "{{ item.servicegroup }}"
+          service_type: HTTP
+          partition: "{{ item.partition | default('default')}}"
+          state: "absent"
+        with_items:
+          - servicegroup: "servicegroup01"
+          - servicegroup: "servicegroup02"
+          - servicegroup: "servicegroup01"
+            partition: "LAB"

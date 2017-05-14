@@ -1,0 +1,221 @@
+---
+  - name: UNITTEST
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CREATE TCP MONITOR - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor01" 
+          monitor_type: "TCP"
+          monitor_dest_ip: "10.10.10.10"
+          monitor_dest_port: "22"
+
+      - name: CREATE TCP MONITOR AGAIN - NO CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor01" 
+          monitor_type: "TCP"
+          monitor_dest_ip: "10.10.10.10"
+          monitor_dest_port: "22"
+
+      - name: CREATE TCP MONITOR AGAIN LESS PARAMS - NO CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor01"
+          monitor_type: "TCP"
+
+      - name: CREATE HTTP MONITOR - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor02"
+          http_request: "HEAD /healthceck.html"
+          monitor_type: "HTTP"
+          monitor_use_ssl: "YES"
+          response_code: "200-202"
+
+      - name: CREATE HTTP MONITOR AGAIN - NO CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor02"
+          http_request: "HEAD /healthceck.html"
+          monitor_type: "HTTP"
+          monitor_use_ssl: "YES"
+          response_code: "200-202"
+
+      - name: CREATE HTTP MONITOR AGAIN LESS PARAMS - NO CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor02"
+          http_request: "HEAD /healthceck.html"
+          monitor_type: "HTTP"
+
+      - name: MODIFY HTTP MONITOR - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor02"
+          http_request: "HEAD /health.html"
+          monitor_type: "HTTP"
+          monitor_use_ssl: "NO"
+
+      - name: ADD RESPONSE CODE TO HTTP MONITOR - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor02"
+          response_code: 205
+
+      - name: ADD RESPONSE CODES TO HTTP MONITOR STRING - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor02"
+          response_code: "207-210, 212"
+
+      - name: ADD RESPONSE CODES TO HTTP MONITOR LIST - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor02"
+          response_code: 
+            - "214-217"
+            - "219"
+            - "222-230"
+
+      - name: ADD RESPONSE CODES THAT EXIST - NO CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor02"
+          response_code: "207-210, 212"
+
+      - name: REMOVE RESPONSE CODE FROM HTTP MONITOR - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor02"
+          response_code: 205
+          response_code_action: remove
+
+      - name: REMOVE RESPONSE CODES FROM HTTP MONITOR STRING - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor02"
+          response_code: "207-210, 212"
+          response_code_action: remove
+
+      - name: REMOVE RESPONSE CODES THAT DO NOT EXIST - NO CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor02"
+          response_code: "207-210, 212"
+          response_code_action: remove
+
+      - name: REMOVE RESPONSE CODES FROM HTTP MONITOR LIST - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor02"
+          response_code: 
+            - "214-217"
+            - "219"
+          response_code_action: remove
+
+      - name: ADD RESPONSE CODES THAT EXIST INSIDE A RANGE - NO CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor02"
+          response_code: "223-226"
+
+      - name: REMOVE RESPONSE CODES INSIDE A RANGE - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor02"
+          response_code: "223-225"
+          response_code_action: remove
+
+      - name: CREATE PING MONITOR IN PARTITION - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor01"
+          monitor_type: "PING"
+          partition: "LAB"
+
+      - name: DELETE MONITOR - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor02"
+          state: "absent"
+
+      - name: DELETE MONITOR AGAIN - NO CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor02"
+          state: "absent"
+
+
+
+  - name: UNITTEST CLEANUP
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: CLEANUP MONITORS - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          state: "absent"
+          monitor_name: "{{ item }}"
+        with_items:
+          - monitor01
+          - monitor02
+          - monitor03
+          - monitor04
+          - monitor05
+
+      - name: CLEANUP MONITORS IN PARTITION - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          state: "absent"
+          monitor_name: "monitor01"
+          partition: "LAB"
