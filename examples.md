@@ -111,3 +111,45 @@ netscaler_lb01
         password: "{{ password }}"
 ```
 
+## Netscaler Facts
+```
+---
+- name: SHOW DIFFERENT WAYS TO USE THE FACTS MODULE
+  hosts: all
+  connection: local
+  gather_facts: False
+
+  tasks:
+    - name: GET ALL FACTS
+      netscaler_server:
+        host: "{{ inventory_hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+
+    - name: GET SOME FACTS USING INCLUDE METHOD
+      netscaler_server:
+        host: "{{ inventory_hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        gather_subset:
+          - "hardware_data"
+          - "interface_data"
+          - "lbvserver_stats"
+
+    - name: GET SOME FACTS USING EXCLUDE METHOD
+      netscaler_server:
+        host: "{{ inventory_hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        gather_subset:
+          - "!config"
+          - "!server_config"
+
+    - name: GET ONLY SYSTEM FACTS
+      netscaler_server:
+        host: "{{ inventory_hostname }}"
+        username: "{{ username }}"
+        password: "{{ password }}"
+        gather_subset:
+          - "!all"
+```

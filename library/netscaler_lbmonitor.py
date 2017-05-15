@@ -53,6 +53,14 @@ options:
         method(http=80, https=443).
     required: false
     type: int
+  provider:
+    description:
+      - Dictionary which acts as a collection of arguments used to define the characteristics
+        of how to connect to the device.
+      - Arguments hostname, username, and password must be specified in either provider or local param.
+      - Local params take precedence, e.g. hostname is preferred to provider["hostname"] when both are specefied.
+    required: false
+    type: dict
   state:
     description:
       - The desired state of the specified object.
@@ -214,7 +222,7 @@ config:
 
 
 import requests
-from ansible.module_utils.basic import AnsibleModule, env_fallback
+from ansible.module_utils.basic import AnsibleModule, env_fallback, return_values
 
 requests.packages.urllib3.disable_warnings()
 
@@ -910,8 +918,8 @@ def main():
         monitor_dest_ip=dict(required=False, type="str"),
         monitor_dest_port=dict(required=False, type="int"),
         monitor_name=dict(required=True, type="str"),
-        monitor_password=dict(required=False, type="str"),
-        monitor_secondary_password=dict(required=False, type="str"),
+        monitor_password=dict(required=False, type="str", no_log=True),
+        monitor_secondary_password=dict(required=False, type="str", no_log=True),
         monitor_state=dict(choices=["disabled", "enabled"], required=False, type="str", default="enabled"),
         monitor_type=dict(choices=VALID_TYPES, required=False, type="str"),
         monitor_use_ssl=dict(choices=["YES", "NO"], required=False, type="str"),
@@ -921,8 +929,13 @@ def main():
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
+    provider = module.params["provider"] or {}
 
-    provider = module.params['provider'] or {}
+    no_log = ["password", "monitor_password", "monitor_secondary_password"]
+    for param in no_log:
+        if provider.get(param):
+            module.no_log_values.update(return_values(provider[param]))
+
     # allow local params to override provider
     for param, pvalue in provider.items():
         if module.params.get(param) is None:

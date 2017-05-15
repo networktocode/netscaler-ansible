@@ -1,13 +1,21 @@
 
 # Ansible Modules for Netscaler Nitro API
+
+* Install Modules
+* Install Requirments
+* Short Module Descritptions
+* Detailed Module Descriptions
+* Module Examples
+* Contributing
+
+## Installation
 You need to perform **two** steps to start using these modules.
 
 1. Ensure this repository is in your Ansible module search path.
 2. Install Dependencies.
 
-## Ensure Modules are you in your search path
-First, understand what your search path is:
-
+#### Locate your search path
+Here is how you can locate your search path:
 ```
 $ ansible --version
 ansible 2.1.1.0
@@ -18,7 +26,6 @@ ansible 2.1.1.0
 If you already have a search path configured, clone the repo (see options below) while you are in your search path.
 
 If you have a "default" or No search path shown, open the config file that is shown in the output above, here that is `/etc/ansible/ansible.cfg`.  In that file, you'll see these first few lines:
-
 ```
 [defaults]
 
@@ -30,6 +37,7 @@ library        = /home/ntc/projects/
 
 Add a path for `library` - this will become your search path. Validate it with `ansible --version` after you make the change.
 
+#### Clone the repo in your search path
 When you clone, do not forget to use `--recursive `!
 
 **Option 1:**
@@ -89,8 +97,11 @@ $ pip install -r requirements.txt
   + Used to save the running configuration on the Netscaler to the device.
   + Returns the status code of the API request to save the configuration.
 
+## Full Module Documentation
+See [Module Documentation](Module_Docs/netscaler_module_docs.md)
+
 ## Examples
 See [Examples](examples.md)
 
 ## Contributing
-SEE [Contributing](contributing.md)
+See [Contributing](contributing.md)

@@ -46,6 +46,14 @@ options:
       - The password associated with the username account.
     required: false
     type: str
+  provider:
+    description:
+      - Dictionary which acts as a collection of arguments used to define the characteristics
+        of how to connect to the device.
+      - Arguments hostname, username, and password must be specified in either provider or local param.
+      - Local params take precedence, e.g. hostname is preferred to provider["hostname"] when both are specefied.
+    required: false
+    type: dict
   port:
     description:
       - The TCP port used to connect to the Netscaler if other than the default used by the transport
@@ -645,7 +653,7 @@ monitor_config:
 '''
 
 import requests
-from ansible.module_utils.basic import AnsibleModule, env_fallback
+from ansible.module_utils.basic import AnsibleModule, env_fallback, return_values
 
 requests.packages.urllib3.disable_warnings()
 
@@ -1083,8 +1091,13 @@ def main():
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=False)
+    provider = module.params["provider"] or {}
 
-    provider = module.params['provider'] or {}
+    no_log = ["password"]
+    for param in no_log:
+        if provider.get(param):
+            module.no_log_values.update(return_values(provider[param]))
+
     # allow local params to override provider
     for param, pvalue in provider.items():
         if module.params.get(param) is None:
