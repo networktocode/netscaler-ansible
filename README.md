@@ -106,6 +106,9 @@ $ pip install -r requirements.txt
 
 
 # Full Module Documentation
+
+The following docs are the same type of docs you'd find on docs.ansible.com for modules that are found in Ansible core:
+
 See [Module Documentation](Module_Docs/netscaler_module_docs.md)
 
 # Examples
