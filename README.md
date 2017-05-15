@@ -4,7 +4,7 @@
 * [Introduction](#introduction)
 * [Module Summary](#modules)
 * [Installation](#installation)
-* [Detailed Module Documentation[(#full-module-documentation)
+* [Detailed Module Documentation](#full-module-documentation)
 * [Module Examples](#examples)
 * [Contributing](#contributing)
 
