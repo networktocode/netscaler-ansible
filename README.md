@@ -1,71 +1,21 @@
 
 # Ansible Modules for Netscaler Nitro API
 
-* Install Modules
-* Install Requirments
-* Short Module Descritptions
-* Detailed Module Descriptions
-* Module Examples
-* Contributing
+* [Introduction](#introduction)
+* [Module Summary](#modules)
+* [Installation](#installation)
+* [Detailed Module Documentation[(#full-module-documentation)
+* [Module Examples](#examples)
+* [Contributing](#contributing)
 
-## Installation
-You need to perform **two** steps to start using these modules.
+# Introduction
 
-1. Ensure this repository is in your Ansible module search path.
-2. Install Dependencies.
+This repository includes a number of Ansible modules to automate Citrix Netscaler devices using the Nitro API.
 
-#### Locate your search path
-Here is how you can locate your search path:
-```
-$ ansible --version
-ansible 2.1.1.0
-  config file = /etc/ansible/ansible.cfg
-  configured module search path = ???
-```
+# Modules
 
-If you already have a search path configured, clone the repo (see options below) while you are in your search path.
+Here is a brief overview of all modules included in this repository.
 
-If you have a "default" or No search path shown, open the config file that is shown in the output above, here that is `/etc/ansible/ansible.cfg`.  In that file, you'll see these first few lines:
-```
-[defaults]
-
-# some basic default values...
-
-inventory      = /etc/ansible/hosts
-library        = /home/ntc/projects/
-```
-
-Add a path for `library` - this will become your search path. Validate it with `ansible --version` after you make the change.
-
-#### Clone the repo in your search path
-When you clone, do not forget to use `--recursive `!
-
-**Option 1:**
-```
-$ git clone https://github.com/networktocode/netscaler-ansible --recursive
-```
-
-**Option 2:**
-```
-$ git clone https://github.com/networktocode/netscaler-ansible
-$ cd netscaler-ansible
-$ git submodule update --init --recursive
-```
-
-As a quick test and sanity use `ansible-doc` on one of the modules before trying to use them in a playbook.  For example, try this:
-```
-$ ansible-doc netscaler_save_config
-```
-
-If that works, Ansible can find the modules and you can proceed to installing the dependcies below.
-
-## Install Dependencies
-```
-$ cd netscaler-ansible
-$ pip install -r requirements.txt
-```
-
-## Modules
 * **netscaler_server**
   + Used to create, update, and delete server objects. 
   + Returns the existing configuration for the server object and the configuration sent to the Netscaler API.
@@ -97,11 +47,69 @@ $ pip install -r requirements.txt
   + Used to save the running configuration on the Netscaler to the device.
   + Returns the status code of the API request to save the configuration.
 
-## Full Module Documentation
+# Installation
+
+You need to perform **two** steps to start using these modules.
+
+1. Ensure this repository is in your Ansible module search path.
+2. Install Dependencies.
+
+### Locate your search path
+Here is how you can locate your search path:
+```
+$ ansible --version
+ansible 2.1.1.0
+  config file = /etc/ansible/ansible.cfg
+  configured module search path = ???
+```
+
+If you already have a search path configured, clone the repo (see options below) while you are in your search path.
+
+If you have a "default" or No search path shown, open the config file that is shown in the output above, here that is `/etc/ansible/ansible.cfg`.  In that file, you'll see these first few lines:
+```
+[defaults]
+
+# some basic default values...
+
+inventory      = /etc/ansible/hosts
+library        = /home/ntc/projects/
+```
+
+Add a path for `library` that exists in this repository - this will become your search path. Validate it with `ansible --version` after you make the change.
+
+### Clone the repo in your search path
+
+**Option 1:**
+```
+$ git clone https://github.com/networktocode/netscaler-ansible
+```
+
+**Option 2:**
+```
+$ git clone https://github.com/networktocode/netscaler-ansible
+$ cd netscaler-ansible
+
+```
+
+As a quick test and sanity use `ansible-doc` on one of the modules before trying to use them in a playbook.  For example, try this:
+```
+$ ansible-doc netscaler_save_config
+```
+
+If that works, Ansible can find the modules and you can proceed to installing the dependencies below.
+
+## Install Dependencies
+```
+$ cd netscaler-ansible
+$ pip install -r requirements.txt
+```
+
+
+# Full Module Documentation
 See [Module Documentation](Module_Docs/netscaler_module_docs.md)
 
-## Examples
+# Examples
 See [Examples](examples.md)
 
-## Contributing
+# Contributing
 See [Contributing](contributing.md)
