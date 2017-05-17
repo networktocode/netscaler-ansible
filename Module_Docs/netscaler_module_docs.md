@@ -1,9 +1,9 @@
-# Ansible FILES modules
-### *Local copy of files modules*
+# Citrix Netscaler Modules
 
 ---
 ### Requirements
-* See official Ansible docs
+* Python `requests`
+* Everything tested was with Netscaler version 11.x
 
 ---
 ### Modules
