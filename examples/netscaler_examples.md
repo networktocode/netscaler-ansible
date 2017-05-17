@@ -81,17 +81,7 @@ PLAY RECAP *********************************************************************
 
 ### Disable Server
 ``` bash
-$ ansible-playbook netscaler_disable_server.yml --extra-vars "server_name=prod_rhel_01 server_state=enabled"
-
-PLAY [PLAY 1 - MANAGE SERVER STATE] *************************************************************************
-
-TASK [TASK 1 - ENSURE SERVER IS IN DESIRED STATE] ***********************************************************
-changed: [10.1.100.121]
-
-PLAY RECAP **************************************************************************************************
-10.1.100.121               : ok=1    changed=1    unreachable=0    failed=0   
-
-(ans23) #ansible-playbook netscaler_disable_server.yml --extra-vars "server_name=prod_rhel_01"
+$ ansible-playbook netscaler_change_server_state.yml --extra-vars "server_name=prod_rhel_01"
 
 PLAY [PLAY 1 - MANAGE SERVER STATE] *************************************************************************
 
@@ -121,6 +111,19 @@ changed: [10.1.100.121] => (item={u'servicegroup_name': u'svcgrp_intranet_http',
 
 PLAY RECAP **************************************************************************************************
 10.1.100.121               : ok=2    changed=2    unreachable=0    failed=0  
+```
+
+### Enable Server
+```bash
+$ ansible-playbook netscaler_change_server_state.yml --extra-vars "server_name=prod_rhel_01 server_state=enabled"
+
+PLAY [PLAY 1 - MANAGE SERVER STATE] *************************************************************************
+
+TASK [TASK 1 - ENSURE SERVER IS IN DESIRED STATE] ***********************************************************
+changed: [10.1.100.121]
+
+PLAY RECAP **************************************************************************************************
+10.1.100.121               : ok=1    changed=1    unreachable=0    failed=0 
 ```
 
 ### Deploy Virtual Server to Partition
