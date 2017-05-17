@@ -1197,24 +1197,24 @@ def get_system_data(session):
     nsconfig = session.get_nsconfig()
 
     return dict(
-        hostname=hostname.get("hostname", ""),
-        model=hardware["hwdescription"],
-        year=hardware["manufactureyear"],
-        system_mac=hardware["host"],
-        serial_number=hardware["serialno"],
+        hostname=hostname.get("hostname"),
+        model=hardware.get("hwdescription"),
+        year=hardware.get("manufactureyear"),
+        system_mac=hardware.get("host"),
+        serial_number=hardware.get("serialno"),
         mgmt_net=dict(
-            ip_address=nsconfig["ipaddress"],
-            netmask=nsconfig["netmask"],
-            vlan=nsconfig["nsvlan"],
-            interfaces=nsconfig["ifnum"],
-            vlan_tagged=nsconfig["tagged"],
-            primary_ip=nsconfig["primaryip"],
+            ip_address=nsconfig.get("ipaddress"),
+            netmask=nsconfig.get("netmask"),
+            vlan=nsconfig.get("nsvlan"),
+            interfaces=nsconfig.get("ifnum"),
+            vlan_tagged=nsconfig.get("tagged"),
+            primary_ip=nsconfig.get("primaryip"),
         ),
-        system_type=nsconfig["systemtype"],
-        timezone=nsconfig["timezone"],
-        last_config=nsconfig["lastconfigchangedtime"],
-        last_save=nsconfig["lastconfigsavetime"],
-        current_time=nsconfig["currentsytemtime"]
+        system_type=nsconfig.get("systemtype"),
+        timezone=nsconfig.get("timezone"),
+        last_config=nsconfig.get("lastconfigchangedtime"),
+        last_save=nsconfig.get("lastconfigsavetime"),
+        current_time=nsconfig.get("currentsytemtime")
     )
 
 
