@@ -1,0 +1,34 @@
+---
+
+service_groups:
+  - name: "svcgrp_intranet_http"
+    service_type: "HTTP"
+    comment: "Intranet HTTP Service Group"
+lb_vservers:
+  - name: "lbvs_intranet_http"
+    ip_address: "10.10.11.21"
+    port: 80
+    service_type: "HTTP"
+    lb_method: "LEASTCONNECTION"
+    persistence: "SRCIPDESTIP"
+    comment: "Intranet HTTP VIP"
+monitors:
+  - name: "lbmon_intranet_http"
+    type: "HTTP"
+    request: "HEAD /healthcheck.html"
+    secure: "YES"
+    response_code: "200"
+bindings:
+  vserver_to_servicegroup:
+    - vserver_name: "lbvs_intranet_http"
+      servicegroup_name: "svcgrp_intranet_http"
+  servicegroup_to_servers:
+    - servicegroup_name: "svcgrp_intranet_http"
+      server_name: "prod_rhel_01"
+      port: 80
+    - servicegroup_name: "svcgrp_intranet_http"
+      server_name: "prod_rhel_02"
+      port: 80
+  servicegroup_to_monitors:
+    - servicegroup_name: "svcgrp_intranet_http"
+      monitor_name: "lbmon_intranet_http"

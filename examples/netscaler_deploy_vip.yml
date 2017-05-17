@@ -1,0 +1,82 @@
+---
+
+  - name: PLAY 1 - ENSURE ALL LOAD BALANCER OBJECTS EXIST
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+  
+    tasks:
+      - name: TASK 1 - ENSURE SERVICE GROUPS ARE DEPLOYED
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "{{ item.name }}"
+          service_type: "{{ item.service_type }}"
+          comment: "{{ item.comment | default('') }}"
+        with_items: "{{ service_groups }}"
+
+      - name: TASK 2 - ENSURE LB VSERVERS ARE DEPLOYED
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          backup_lbvserver: "{{ item.backup_vserver | default('') }}"
+          lbvserver_name: "{{ item.name }}"
+          ip_address: "{{ item.ip_address }}"
+          service_type: "{{ item.service_type | default('') }}"
+          lbvserver_port: "{{ item.port | default('') }}"
+          lbmethod: "{{ item.lb_method | default('LEASTCONNECTION') }}"
+          persistence: "{{ item.persistence | default('') }}"
+          conn_failover: "{{ item.conn_failover | default('DISABLED') }}"
+          comment: "{{ item.comment | default('') }}"
+        with_items: "{{ lb_vservers }}"
+
+      - name: TASK 3 - ENSURE MONITORS ARE DEPLOYED
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          monitor_name: "{{ item.name }}"
+          monitor_type: "{{ item.type }}"
+          http_request: "{{ item.request | default('') }}"
+          monitor_use_ssl: "{{ item.secure | default('NO') }}"
+          response_code: "{{ item.response_code | default([]) }}"
+        when: monitors is defined
+        with_items: "{{ monitors }}"
+
+
+
+  - name: PLAY 2 - ENSURE ALL BINDINGS EXIST
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+
+    tasks:
+      - name: TASK 1 - ENSURE VSEVERS ARE BOUND TO SERVICEGROUPS
+        netscaler_lbvserver_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "{{ item.vserver_name }}"
+          servicegroup_name: "{{ item.servicegroup_name }}"
+        with_items: "{{ bindings.vserver_to_servicegroup }}"
+
+      - name: TASK 2 - ENSURE SERVICEGROUPS ARE BOUND TO SERVERS
+        netscaler_servicegroup_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "{{ item.servicegroup_name }}"
+          server_name: "{{ item.server_name }}"
+          server_port: "{{ item.port }}"
+        with_items: "{{ bindings.servicegroup_to_servers }}"
+
+      - name: TASK 3 - ENSURE SERVICEGROUPS ARE BOUND TO MONITORS
+        netscaler_servicegroup_monitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "{{ item.servicegroup_name }}"
+          monitor_name: "{{ item.monitor_name }}"
+        with_items: "{{ bindings.servicegroup_to_monitors }}"

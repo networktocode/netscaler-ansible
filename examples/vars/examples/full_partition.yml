@@ -1,0 +1,61 @@
+---
+
+servers:
+  - name: "prod_rhel_04"
+    ip_address: "10.10.12.21"
+    comment: "Dev Intranet Server"
+  - name: "dr_rhel_04"
+    ip_address: "10.10.22.21"
+    comment: "Dev Backup Intranet Server"
+service_groups:
+  - name: "svcgrp_dev_intranet_https"
+    service_type: "SSL_BRIDGE"
+    comment: "Dev Intranet Service Group"
+  - name: "svcgrp_dev_backup_intranet_https"
+    service_type: "SSL_BRIDGE"
+    comment: "Dev Backup Intranet HTTPS Service Group"
+lb_vservers:
+  - name: "lbvs_dev_intranet_https"
+    ip_address: "10.10.13.21"
+    port: 443
+    backup_vserver: "lbvs_dev_backup_intranet_https"
+    service_type: "SSL_BRIDGE"
+    lb_method: "LEASTCONNECTION"
+    persistence: "SRCIPDESTIP"
+    comment: "Dev Intranet HTTPS VIP"
+lb_vservers_backup:
+  - name: "lbvs_dev_backup_intranet_https"
+    service_type: "SSL_BRIDGE"
+    persistence: "SRCIPDESTIP"
+    state: "disabled"
+    comment: "Dev Backup Intranet HTTPS VIP"
+monitors:
+  - name: "lbmon_dev_intranet_https"
+    type: "HTTP"
+    request: "HEAD /healthcheck.html"
+    secure: "YES"
+    response_code: "200-202"
+  - name: "lbmon_dev_backup_intranet_https"
+    type: "HTTP"
+    request: "HEAD /healthcheck.html"
+    secure: "YES"
+    response_code: "200-202"
+bindings:
+  vserver_to_servicegroup:
+    - vserver_name: "lbvs_dev_intranet_https"
+      servicegroup_name: "svcgrp_dev_intranet_https"
+    - vserver_name: "lbvs_dev_backup_intranet_https"
+      servicegroup_name: "svcgrp_dev_backup_intranet_https"
+  servicegroup_to_servers:
+    - servicegroup_name: "svcgrp_dev_intranet_https"
+      server_name: "prod_rhel_04"
+      port: 443
+    - servicegroup_name: "svcgrp_dev_backup_intranet_https"
+      server_name: "dr_rhel_04"
+      port: 443
+  servicegroup_to_monitors:
+    - servicegroup_name: "svcgrp_dev_intranet_https"
+      monitor_name: "lbmon_dev_intranet_https"
+    - servicegroup_name: "svcgrp_dev_backup_intranet_https"
+      monitor_name: "lbmon_dev_backup_intranet_https"    
+partition: "UAT"

@@ -49,7 +49,7 @@ netscaler_lb01
         username: "{{ username }}"
         password: "{{ password }}"
         lbvserver_name: "vserver_app01"
-        ip_addresss: "10.1.10.21"
+        ip_address: "10.1.10.21"
         lbvserver_port: 443
         service_type: "SSL"
         lbmethod: "ROUNDROBIN"
@@ -65,8 +65,8 @@ netscaler_lb01
         monitor_use_ssl: "YES"
         http_request: "HEAD /healthcheck.html"
         response_code:
-          -"200-202"
-          -"204"
+          - "200-202"
+          - "204"
 
     - name: BIND SERVICE GROUP TO SERVER
       netscaler_servicegroup_server:
@@ -74,7 +74,7 @@ netscaler_lb01
         username: "{{ username }}"
         password: "{{ password }}"
         servicegroup_name: "sg_app01"
-        server_name: "{{ item }"
+        server_name: "{{ item }}"
         server_port: 443
       with_items:
         - "server01"
