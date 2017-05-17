@@ -1,0 +1,73 @@
+---
+
+servers:
+  - name: "prod_rhel_01"
+    ip_address: "10.10.10.21"
+    comment: "Intranet Server"
+  - name: "prod_rhel_02"
+    ip_address: "10.10.10.22"
+    comment: "Intranet Server"
+  - name: "dr_rhel_01"
+    ip_address: "10.10.20.21"
+    comment: "Backup Intranet Server"
+  - name: "dr_rhel_02"
+    ip_address: "10.10.20.22"
+    comment: "Backup Intranet Server"
+service_groups:
+  - name: "svcgrp_intranet_https"
+    service_type: "SSL_BRIDGE"
+    comment: "Intranet HTTPS Service Group"
+  - name: "svcgrp_backup_intranet_https"
+    service_type: "SSL_BRIDGE"
+    comment: "Backup Intranet HTTPS Service Group"
+lb_vservers:
+  - name: "lbvs_intranet_https"
+    ip_address: "10.10.11.21"
+    port: 443
+    backup_vserver: "lbvs_backup_intranet_https"
+    service_type: "SSL_BRIDGE"
+    lb_method: "LEASTCONNECTION"
+    persistence: "SRCIPDESTIP"
+    conn_failover: "STATEFUL"
+    comment: "Intranet HTTPS VIP"
+lb_vservers_backup:
+  - name: "lbvs_backup_intranet_https"
+    service_type: "SSL_BRIDGE"
+    persistence: "SRCIPDESTIP"
+    state: "disabled"
+    comment: "Backup Intranet HTTPS VIP"
+monitors:
+  - name: "lbmon_intranet_https"
+    type: "HTTP"
+    request: "HEAD /healthcheck.html"
+    secure: "YES"
+    response_code: "200-202"
+  - name: "lbmon_backup_intranet_https"
+    type: "HTTP"
+    request: "HEAD /healthcheck.html"
+    secure: "YES"
+    response_code: "200-202"
+bindings:
+  vserver_to_servicegroup:
+    - vserver_name: "lbvs_intranet_https"
+      servicegroup_name: "svcgrp_intranet_https"
+    - vserver_name: "lbvs_backup_intranet_https"
+      servicegroup_name: "svcgrp_backup_intranet_https"
+  servicegroup_to_servers:
+    - servicegroup_name: "svcgrp_intranet_https"
+      server_name: "prod_rhel_01"
+      port: 443
+    - servicegroup_name: "svcgrp_intranet_https"
+      server_name: "prod_rhel_02"
+      port: 443
+    - servicegroup_name: "svcgrp_backup_intranet_https"
+      server_name: "dr_rhel_01"
+      port: 443
+    - servicegroup_name: "svcgrp_backup_intranet_https"
+      server_name: "dr_rhel_02"
+      port: 443
+  servicegroup_to_monitors:
+    - servicegroup_name: "svcgrp_intranet_https"
+      monitor_name: "lbmon_intranet_https"
+    - servicegroup_name: "svcgrp_backup_intranet_https"
+      monitor_name: "lbmon_backup_intranet_https"    

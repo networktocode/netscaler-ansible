@@ -1,0 +1,15 @@
+---
+
+  - name: PLAY 1 - MANAGE SERVER STATE
+    hosts: netscaler
+    connection: local
+    gather_facts: False
+  
+    tasks:
+      - name: TASK 1 - ENSURE SERVER IS IN DESIRED STATE
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "{{ server_name }}"
+          server_state: "{{ server_state | default('disabled') }}"

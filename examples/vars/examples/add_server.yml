@@ -1,0 +1,21 @@
+---
+
+servers:
+  - name: "prod_rhel_03"
+    ip_address: "10.10.10.23"
+    comment: "Intranet Server"
+  - name: "dr_rhel_03"
+    ip_address: "10.10.20.23"
+    comment: "Backup Intranet Server"
+bindings:
+  servicegroup_to_servers:
+    - servicegroup_name: "svcgrp_intranet_https"
+      server_name: "prod_rhel_03"
+      port: 443
+    - servicegroup_name: "svcgrp_backup_intranet_https"
+      server_name: "dr_rhel_03"
+      port: 443
+    - servicegroup_name: "svcgrp_intranet_http"
+      server_name: "prod_rhel_03"
+      port: 80
+
