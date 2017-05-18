@@ -121,13 +121,13 @@ netscaler_lb01
 
   tasks:
     - name: GET ALL FACTS
-      netscaler_server:
+      netscaler_facts:
         host: "{{ inventory_hostname }}"
         username: "{{ username }}"
         password: "{{ password }}"
 
     - name: GET SOME FACTS USING INCLUDE METHOD
-      netscaler_server:
+      netscaler_facts:
         host: "{{ inventory_hostname }}"
         username: "{{ username }}"
         password: "{{ password }}"
@@ -137,7 +137,7 @@ netscaler_lb01
           - "lbvserver_stats"
 
     - name: GET SOME FACTS USING EXCLUDE METHOD
-      netscaler_server:
+      netscaler_facts:
         host: "{{ inventory_hostname }}"
         username: "{{ username }}"
         password: "{{ password }}"
@@ -146,7 +146,7 @@ netscaler_lb01
           - "!server_config"
 
     - name: GET ONLY SYSTEM FACTS
-      netscaler_server:
+      netscaler_facts:
         host: "{{ inventory_hostname }}"
         username: "{{ username }}"
         password: "{{ password }}"
