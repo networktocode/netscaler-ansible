@@ -808,7 +808,7 @@ class ServiceGroup(Netscaler):
                  exist, then an empty dictionary is returned.
         """
         url = self.url + self.api_endpoint + "_lbmonitor_binding/" + object_name + \
-              "?attrs=servicegroupname,monitor_name"
+              "?attrs=servicegroupname,monitor_name,weight"
         response = self.session.get(url, headers=self.headers, verify=self.verify)
 
         return response.json().get("servicegroup_lbmonitor_binding", [])
@@ -822,7 +822,7 @@ class ServiceGroup(Netscaler):
                  exist, then an empty dictionary is returned.
         """
         url = self.url + self.api_endpoint + "_servicegroupmember_binding/" + object_name + \
-              "?attrs=servicegroupname,servername,port"
+              "?attrs=servicegroupname,servername,port,weight"
         response = self.session.get(url, headers=self.headers, verify=self.verify)
 
         return response.json().get("servicegroup_servicegroupmember_binding", [])

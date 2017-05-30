@@ -65,6 +65,26 @@
           servicegroup_name: "servicegroup01"
           partition: "LAB"
 
+      - name: CREATE SERVICE GROUP TO MONITOR BINDING WITH WEIGHT - CHANGE
+        netscaler_servicegroup_monitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          monitor_name: "monitor02"
+          servicegroup_name: "servicegroup02"
+          weight: "20"
+        tags: test
+
+      - name: CREATE SERVICE GROUP TO MONITOR BINDING WITH WEIGHT AGAIN - NO CHANGE
+        netscaler_servicegroup_monitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          monitor_name: "monitor02"
+          servicegroup_name: "servicegroup02"
+          weight: "20"
+        tags: test
+
       - name: REMOVE SERVICE GROUP TO MONITOR BINDING - CHANGE
         netscaler_servicegroup_monitor:
           host: "{{ inventory_hostname }}"
@@ -125,6 +145,7 @@
     hosts: netscaler
     connection: local
     gather_facts: False
+    tags: cleanup
 
     tasks:
       - name: CLEANUP BINDINGS - CHANGE
@@ -139,8 +160,8 @@
         with_items:
           - monitor: "monitor01"
             servicegroup: "servicegroup01"
-          - monitor: "monitor01"
-            servicegroup: "servicegroup01"
+          - monitor: "monitor02"
+            servicegroup: "servicegroup02"
           - monitor: "monitor01"
             servicegroup: "servicegroup01"
             partition: "LAB"
@@ -151,6 +172,7 @@
     hosts: netscaler
     connection: local
     gather_facts: False
+    tags: cleanup
 
     tasks:
       - name: CLEANUP MONITORS - CHANGE

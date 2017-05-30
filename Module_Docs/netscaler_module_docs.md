@@ -166,6 +166,7 @@ Manages service group to server bindings.
 | server_name  |   yes  |  | |  The server name which is being bound to a service group.  |
 | partition  |   no  |  | |  The Netscaler's partition if not the "default" partition.  |
 | host  |   yes  |  | |  The Netscaler's Address.  |
+| weight  |   no  |  | |  The weight to assing the servers in the Service Group.  |
 | state  |   no  |  present  | <ul> <li>absent</li>  <li>present</li> </ul> |  The desired state of the specified object.  Absent will delete resource.  Present will create resource.  |
 | server_port  |   yes  |  | |  The port the server is listening on to offer services.  |
 | provider  |   no  |  | |  Dictionary which acts as a collection of arguments used to define the characteristics of how to connect to the device.  Arguments hostname, username, and password must be specified in either provider or local param.  Local params take precedence, e.g. hostname is preferred to provider["hostname"] when both are specefied.  |
@@ -230,6 +231,7 @@ Manages service group to monitor bindings.
 | ------------- |-------------| ---------|----------- |--------- |
 | username  |   yes  |  | |  The username used to authenticate with the Netscaler.  |
 | servicegroup_name  |   yes  |  | |  The service group name which the server is being bound to.  |
+| weight  |   no  |  | |  The weight to assing the servers in the Service Group.  |
 | monitor_name  |   yes  |  | |  The monitor name which is being bound to a service group.  |
 | partition  |   no  |  | |  The Netscaler's partition if not the "default" partition.  |
 | host  |   yes  |  | |  The Netscaler's Address.  |
