@@ -101,6 +101,11 @@ options:
       - The port the server is listening on to offer services.
     required: True
     type: str
+  weight:
+    description:
+      - The weight to assing the servers in the Service Group.
+    required: False
+    type: str
 '''
 
 EXAMPLES = '''
@@ -763,7 +768,7 @@ class ServiceGroup(Netscaler):
                  exist, then an empty dictionary is returned.
         """
         url = self.url + self.api_endpoint + "_lbmonitor_binding/" + object_name + \
-              "?attrs=servicegroupname,monitor_name"
+              "?attrs=servicegroupname,monitor_name,weight"
         response = self.session.get(url, headers=self.headers, verify=self.verify)
 
         return response.json().get("servicegroup_lbmonitor_binding", [])
@@ -777,7 +782,7 @@ class ServiceGroup(Netscaler):
                  exist, then an empty dictionary is returned.
         """
         url = self.url + self.api_endpoint + "_servicegroupmember_binding/" + object_name + \
-              "?attrs=servicegroupname,servername,port"
+              "?attrs=servicegroupname,servername,port,weight"
         response = self.session.get(url, headers=self.headers, verify=self.verify)
 
         return response.json().get("servicegroup_servicegroupmember_binding", [])
@@ -884,7 +889,8 @@ def main():
         partition=dict(required=False, type="str"),
         server_name=dict(required=True, type="str"),
         server_port=dict(required=True, type="str"),
-        servicegroup_name=dict(required=True, type="str")
+        servicegroup_name=dict(required=True, type="str"),
+        weight=dict(required=False, type="str")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -917,11 +923,14 @@ def main():
         except ValueError:
             module.fail_json(msg="'server_port' Must be a Number from 0 to 65535, or '*'")
 
-    proposed = dict(
+    args = dict(
         port=service_port,
         servername=module.params["server_name"],
-        servicegroupname=module.params["servicegroup_name"]
+        servicegroupname=module.params["servicegroup_name"],
+        weight=module.params["weight"]
     )
+    # "if isinstance(v, bool) or v" should be used if a bool variable is added to args
+    proposed = dict((k, v) for k, v in args.items() if v)
 
     kwargs = dict()
     if port:
@@ -961,16 +970,25 @@ def change_config(session, module, proposed, all_existing):
     """
     changed = False
     config = []
+    existing = {}
+    # wildcard includes all ports meaning that no new ports need to be added; needed to keep idempotent
     proposed_wcard = dict(servicegroupname=proposed["servicegroupname"], servername=proposed["servername"], port=65535)
+    proposed_minimum = dict(servicegroupname=proposed["servicegroupname"], servername=proposed["servername"],
+                            port=proposed["port"])
 
-    if proposed_wcard in all_existing:
-        existing = proposed_wcard
-    elif proposed not in all_existing:
+    for binding in all_existing:
+        if proposed_wcard == dict(servicegroupname=binding["servicegroupname"], servername=binding["servername"],
+                                  port=binding["port"]):
+            existing = proposed_wcard
+            break
+        elif proposed_minimum == dict(servicegroupname=binding["servicegroupname"], servername=binding["servername"],
+                                      port=binding["port"]):
+            existing = proposed
+            break
+
+    if not existing:
         changed = True
         config = session.add_server_binding(module, proposed)
-        existing = {}
-    else:
-        existing = proposed
 
     return {"all_existing": all_existing, "changed": changed, "config": config, "existing": existing}
 
@@ -989,12 +1007,17 @@ def delete_server_binding(session, module, proposed, all_existing):
     """
     changed = False
     config = []
+    proposed_minimum = dict(servicegroupname=proposed["servicegroupname"], servername=proposed["servername"],
+                            port=proposed["port"])
 
-    if proposed in all_existing:
-        changed = True
-        config = session.remove_server_binding(module, proposed)
-        existing = proposed
-    else:
+    for binding in all_existing:
+        if proposed_minimum == dict(servicegroupname=binding["servicegroupname"], servername=binding["servername"],
+                                    port=binding["port"]):
+            changed = True
+            config = session.remove_server_binding(module, proposed)
+            existing = proposed
+
+    if not config:
         existing = {}
 
     return {"all_existing": all_existing, "changed": changed, "config": config, "existing": existing}

@@ -96,6 +96,11 @@ options:
       - The service group name which the server is being bound to.
     required: True
     type: str
+  weight:
+    description:
+      - The weight to assing the servers in the Service Group.
+    required: False
+    type: str
 '''
 
 EXAMPLES = '''
@@ -755,7 +760,7 @@ class ServiceGroup(Netscaler):
                  exist, then an empty dictionary is returned.
         """
         url = self.url + self.api_endpoint + "_lbmonitor_binding/" + object_name + \
-              "?attrs=servicegroupname,monitor_name"
+              "?attrs=servicegroupname,monitor_name,weight"
         response = self.session.get(url, headers=self.headers, verify=self.verify)
 
         return response.json().get("servicegroup_lbmonitor_binding", [])
@@ -769,7 +774,7 @@ class ServiceGroup(Netscaler):
                  exist, then an empty dictionary is returned.
         """
         url = self.url + self.api_endpoint + "_servicegroupmember_binding/" + object_name + \
-              "?attrs=servicegroupname,servername,port"
+              "?attrs=servicegroupname,servername,port,weight"
         response = self.session.get(url, headers=self.headers, verify=self.verify)
 
         return response.json().get("servicegroup_servicegroupmember_binding", [])
@@ -875,7 +880,8 @@ def main():
         state=dict(choices=["absent", "present"], default="present", type="str"),
         partition=dict(required=False, type="str"),
         monitor_name=dict(required=True, type="str"),
-        servicegroup_name=dict(required=True, type="str")
+        servicegroup_name=dict(required=True, type="str"),
+        weight=dict(required=False, type="str")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -900,10 +906,14 @@ def main():
     username = module.params["username"]
     validate_certs = module.params["validate_certs"]
 
-    proposed = dict(
+    args = dict(
         monitor_name=module.params["monitor_name"],
-        servicegroupname=module.params["servicegroup_name"]
+        servicegroupname=module.params["servicegroup_name"],
+        weight=module.params["weight"]
     )
+
+    # "if isinstance(v, bool) or v" should be used if a bool variable is added to args
+    proposed = dict((k, v) for k, v in args.items() if v)
 
     kwargs = dict()
     if port:
@@ -943,13 +953,18 @@ def change_config(session, module, proposed, all_existing):
     """
     changed = False
     config = []
+    existing = {}
 
-    if proposed not in all_existing:
+    proposed_minimum = dict(servicegroupname=proposed["servicegroupname"], monitor_name=proposed["monitor_name"])
+
+    for binding in all_existing:
+        if proposed_minimum == dict(servicegroupname=binding["servicegroupname"], monitor_name=binding["monitor_name"]):
+            existing = proposed
+            break
+
+    if not  existing:
         changed = True
         config = session.add_monitor_binding(module, proposed)
-        existing = {}
-    else:
-        existing = proposed
 
     return {"all_existing": all_existing, "changed": changed, "config": config, "existing": existing}
 
@@ -969,11 +984,16 @@ def delete_monitor_binding(session, module, proposed, all_existing):
     changed = False
     config = []
 
-    if proposed in all_existing:
-        changed = True
-        config = session.remove_monitor_binding(module, proposed)
-        existing = proposed
-    else:
+    proposed_minimum = dict(servicegroupname=proposed["servicegroupname"], monitor_name=proposed["monitor_name"])
+
+    for binding in all_existing:
+        if proposed_minimum == dict(servicegroupname=binding["servicegroupname"], monitor_name=binding["monitor_name"]):
+            changed = True
+            config = session.remove_monitor_binding(module, proposed)
+            existing = proposed
+            break
+            
+    if not config:
         existing = {}
 
     return {"all_existing": all_existing, "changed": changed, "config": config, "existing": existing}
