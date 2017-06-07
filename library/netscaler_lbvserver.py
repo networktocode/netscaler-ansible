@@ -161,6 +161,13 @@ options:
     choices: ["HTTP", "FTP", "TCP", "UDP", "SSL", "SSL_BRIDGE", "SSL_TCP", "DTLS", "NNTP", "DNS", "DHCPRA", "ANY",
               "SIP_UDP", "SIP_TCP", "SIP_SSL", "DNS_TCP", "RTSP", "PUSH", "SSL_PUSH", "RADIUS", "RDP", "MYSQL",
               "MSSQL", "DIAMETER", "SSL_DIAMETER", "TFTP", "ORACLE", "SMPP", "SYSLOGTCP", "SYSLOGUDP", "FIX"]
+  app_flow_log:
+    description:
+      - Enable logging of AppFlow information for the specified service group.
+    required: false
+    type: str
+    choices: ["DISABLED", "ENABLED"]
+    default: "ENABLED"
   traffic_domain:
     description:
       - The traffic domain associated with the servicegroup
@@ -993,6 +1000,7 @@ def main():
         lbvserver_state=dict(choices=["disabled", "enabled"], required=False, type="str", default="enabled"),
         persistence=dict(choices=VALID_PERSISTENCE_TYPES, required=False, type="str"),
         service_type=dict(choices=VALID_SERVICETYPES, required=False, type="str"),
+        app_flow_log=dict(choices=["ENABLED", "DISABLED"], required=False, type="str", default="ENABLED"),
         traffic_domain=dict(required=False, type="str", default="0"),
     )
 
@@ -1031,6 +1039,7 @@ def main():
         state=module.params["lbvserver_state"].upper(),
         persistencetype=module.params["persistence"],
         servicetype=module.params["service_type"],
+        appflowlog=module.params["app_flow_log"],
         td=module.params["traffic_domain"]
     )
 
