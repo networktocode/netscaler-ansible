@@ -177,6 +177,12 @@ options:
     required: false
     type: str
     choices: ["YES", "NO"]
+  cmp:
+    description:
+      - Enable compression for the specified service.
+    required: false
+    type: str
+    choices: ["YES", "NO"]
 '''
 
 EXAMPLES = '''
@@ -979,7 +985,8 @@ def main():
         cip=dict(choices=["ENABLED","DISABLED"], required=False, type="str"),
         usip=dict(choices=["YES","NO"], required=False, type="str", default="NO"),
         useproxyport=dict(choices=["YES","NO"], required=False, type="str"),
-        tcpb=dict(choices=["YES","NO"], required=False, type="str")
+        tcpb=dict(choices=["YES","NO"], required=False, type="str"),
+        cmp=dict(choices=["YES","NO"], required=False, type="str")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -1018,7 +1025,8 @@ def main():
         cip=module.params["cip"],
         usip=module.params["usip"],
         useproxyport=module.params["useproxyport"],
-        tcpb=module.params["tcpb"]
+        tcpb=module.params["tcpb"],
+        cmp=module.params["cmp"]
     )
 
     # "if isinstance(v, bool) or v" should be used if a bool variable is added to args
