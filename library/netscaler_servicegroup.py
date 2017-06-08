@@ -161,6 +161,7 @@ options:
       - Use client's IP address as the source IP address when initiating connection to the server.
     required: false
     type: str
+    choices: ["YES", "NO"]
     default: "NO"
   useproxyport:
     description:
