@@ -144,6 +144,12 @@ options:
     required: false
     type: str
     default: "0"
+  cka:
+    description:
+      - Enable client keep-alive for the service group.
+    required: false
+    type: str
+    choices: ["YES", "NO"]
 '''
 
 EXAMPLES = '''
@@ -941,7 +947,8 @@ def main():
         service_type=dict(choices=VALID_SERVICETYPES, required=False, type="str"),
         servicegroup_name=dict(required=True, type="str"),
         servicegroup_state=dict(choices=["disabled", "enabled"], default="enabled", type="str"),
-        traffic_domain=dict(required=False, type="str", default="0")
+        traffic_domain=dict(required=False, type="str", default="0"),
+        cka=dict(choices=["YES","NO"], required=False, type="str")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -975,7 +982,8 @@ def main():
         servicetype=module.params["service_type"],
         servicegroupname=module.params["servicegroup_name"],
         state=module.params["servicegroup_state"].upper(),
-        td=module.params["traffic_domain"]
+        td=module.params["traffic_domain"],
+        cka=module.params["cka"]
     )
 
     # "if isinstance(v, bool) or v" should be used if a bool variable is added to args
