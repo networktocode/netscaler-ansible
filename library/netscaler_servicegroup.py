@@ -162,6 +162,14 @@ options:
     required: false
     type: str
     default: "NO"
+  useproxyport:
+    description:
+      - Use the proxy port as the source port when initiating connections with the server.
+      - With the NO setting, the client-side connection port is used as the source port for the server-side connection.
+      - Note: This parameter is available only when the Use Source IP (USIP) parameter is set to YES.
+    required: false
+    type: str
+    choices: ["YES", "NO"]
 '''
 
 EXAMPLES = '''
@@ -962,7 +970,8 @@ def main():
         traffic_domain=dict(required=False, type="str", default="0"),
         cka=dict(choices=["YES","NO"], required=False, type="str"),
         cip=dict(choices=["ENABLED","DISABLED"], required=False, type="str"),
-        usip=dict(choices=["YES","NO"], required=False, type="str", default="NO")
+        usip=dict(choices=["YES","NO"], required=False, type="str", default="NO"),
+        useproxyport=dict(choices=["YES","NO"], required=False, type="str")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -999,7 +1008,8 @@ def main():
         td=module.params["traffic_domain"],
         cka=module.params["cka"],
         cip=module.params["cip"],
-        usip=module.params["usip"]
+        usip=module.params["usip"],
+        useproxyport=module.params["useproxyport"],
     )
 
     # "if isinstance(v, bool) or v" should be used if a bool variable is added to args
