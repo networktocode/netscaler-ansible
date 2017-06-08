@@ -150,6 +150,12 @@ options:
     required: false
     type: str
     choices: ["YES", "NO"]
+  cip:
+    description:
+      - Insert the Client IP header in requests forwarded to the service.
+    required: false
+    type: str
+    choices: ["ENABLED", "DISABLED"]
 '''
 
 EXAMPLES = '''
@@ -948,7 +954,8 @@ def main():
         servicegroup_name=dict(required=True, type="str"),
         servicegroup_state=dict(choices=["disabled", "enabled"], default="enabled", type="str"),
         traffic_domain=dict(required=False, type="str", default="0"),
-        cka=dict(choices=["YES","NO"], required=False, type="str")
+        cka=dict(choices=["YES","NO"], required=False, type="str"),
+        cip=dict(choices=["ENABLED","DISABLED"], required=False, type="str")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -983,7 +990,8 @@ def main():
         servicegroupname=module.params["servicegroup_name"],
         state=module.params["servicegroup_state"].upper(),
         td=module.params["traffic_domain"],
-        cka=module.params["cka"]
+        cka=module.params["cka"],
+        cip=module.params["cip"]
     )
 
     # "if isinstance(v, bool) or v" should be used if a bool variable is added to args
