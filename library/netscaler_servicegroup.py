@@ -156,6 +156,12 @@ options:
     required: false
     type: str
     choices: ["ENABLED", "DISABLED"]
+  usip:
+    description:
+      - Use client's IP address as the source IP address when initiating connection to the server.
+    required: false
+    type: str
+    default: "NO"
 '''
 
 EXAMPLES = '''
@@ -955,7 +961,8 @@ def main():
         servicegroup_state=dict(choices=["disabled", "enabled"], default="enabled", type="str"),
         traffic_domain=dict(required=False, type="str", default="0"),
         cka=dict(choices=["YES","NO"], required=False, type="str"),
-        cip=dict(choices=["ENABLED","DISABLED"], required=False, type="str")
+        cip=dict(choices=["ENABLED","DISABLED"], required=False, type="str"),
+        usip=dict(choices=["YES","NO"], required=False, type="str", default="NO")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -991,7 +998,8 @@ def main():
         state=module.params["servicegroup_state"].upper(),
         td=module.params["traffic_domain"],
         cka=module.params["cka"],
-        cip=module.params["cip"]
+        cip=module.params["cip"],
+        usip=module.params["usip"]
     )
 
     # "if isinstance(v, bool) or v" should be used if a bool variable is added to args
