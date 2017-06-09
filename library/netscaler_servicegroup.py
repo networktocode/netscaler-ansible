@@ -156,6 +156,11 @@ options:
     required: false
     type: str
     choices: ["ENABLED", "DISABLED"]
+  cipheader:
+    description:
+      - Name of the HTTP header whose value must be set to the IP address of the client. Used with the Client IP parameter.
+    required: false
+    type: str
   usip:
     description:
       - Use client's IP address as the source IP address when initiating connection to the server.
@@ -983,6 +988,7 @@ def main():
         traffic_domain=dict(required=False, type="str", default="0"),
         cka=dict(choices=["YES","NO"], required=False, type="str"),
         cip=dict(choices=["ENABLED","DISABLED"], required=False, type="str"),
+        cipheader=dict(required=False, type="str"),
         usip=dict(choices=["YES","NO"], required=False, type="str", default="NO"),
         useproxyport=dict(choices=["YES","NO"], required=False, type="str"),
         tcpb=dict(choices=["YES","NO"], required=False, type="str"),
@@ -1023,6 +1029,7 @@ def main():
         td=module.params["traffic_domain"],
         cka=module.params["cka"],
         cip=module.params["cip"],
+        cipheader=module.params["cipheader"],
         usip=module.params["usip"],
         useproxyport=module.params["useproxyport"],
         tcpb=module.params["tcpb"],
