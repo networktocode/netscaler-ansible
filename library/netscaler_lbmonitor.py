@@ -990,7 +990,10 @@ def main():
         secure=module.params["monitor_use_ssl"],
         state=module.params["monitor_state"].upper(),
         type=module.params["monitor_type"],
-        username=module.params["monitor_username"]
+        username=module.params["monitor_username"],
+        send = module.params["send"],
+        recv = module.params["recv"],
+        lrtm = module.params["lrtm"]
     )
 
     # "if isinstance(v, bool) or v" should be used if a bool variable is added to args
