@@ -185,6 +185,13 @@ options:
     required: false
     type: str
     choices: ["ENABLED", "DISABLED"]
+  interval:
+    description:
+      - Time interval between two successive probes. Must be greater than the value of Response Time-out.
+    required: false
+    default: 5
+    type: int
+    choices: ["ENABLED", "DISABLED"]
 '''
 
 EXAMPLES = '''
@@ -946,7 +953,8 @@ def main():
         response_code_action=dict(choices=["add", "remove"], required=False, type="str", default="add"),
         send=dict(required=False, type="str"),
         recv=dict(required=False, type="str"),
-        lrtm=dict(choices=["ENABLED", "DISABLED"], required=False, type="str")
+        lrtm=dict(choices=["ENABLED", "DISABLED"], required=False, type="str"),
+        interval=dict(default=5,required=False, type="int")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -975,6 +983,7 @@ def main():
     send = module.params["send"]
     recv = module.params["recv"]
     lrtm = module.params["lrtm"]
+    interval = module.params["interval"]
     if response_code:
         response_code = [str(code).strip() for code in response_code]
 
@@ -993,7 +1002,8 @@ def main():
         username=module.params["monitor_username"],
         send = module.params["send"],
         recv = module.params["recv"],
-        lrtm = module.params["lrtm"]
+        lrtm = module.params["lrtm"],
+        interval = module.params["interval"]
     )
 
     # "if isinstance(v, bool) or v" should be used if a bool variable is added to args
