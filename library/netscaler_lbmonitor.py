@@ -172,6 +172,11 @@ options:
       - String to send to the service. Applicable to TCP-ECV, HTTP-ECV, and UDP-ECV monitors.
     required: false
     type: str
+  recv:
+    description:
+      - String expected from the server for the service to be marked as UP. Applicable to TCP-ECV, HTTP-ECV, and UDP-ECV monitors.
+    required: false
+    type: str
 '''
 
 EXAMPLES = '''
@@ -931,7 +936,8 @@ def main():
         monitor_username=dict(required=False, type="str"),
         response_code=dict(required=False, type="list"),
         response_code_action=dict(choices=["add", "remove"], required=False, type="str", default="add"),
-        send=dict(required=False, type="str")
+        send=dict(required=False, type="str"),
+        recv=dict(required=False, type="str")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -958,6 +964,7 @@ def main():
     response_code_action = module.params["response_code_action"]
     response_code = module.params["response_code"]
     send = module.params["send"]
+    recv = module.params["recv"]
     if response_code:
         response_code = [str(code).strip() for code in response_code]
 
