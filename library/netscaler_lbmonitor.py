@@ -177,6 +177,14 @@ options:
       - String expected from the server for the service to be marked as UP. Applicable to TCP-ECV, HTTP-ECV, and UDP-ECV monitors.
     required: false
     type: str
+  lrtm:
+    description:
+      - Calculate the least response times for bound services.
+      - If this parameter is not enabled, the appliance does not learn the response times of the bound services.
+      - Also used for LRTM load balancing.
+    required: false
+    type: str
+    choices: ["ENABLED", "DISABLED"]
 '''
 
 EXAMPLES = '''
@@ -937,7 +945,8 @@ def main():
         response_code=dict(required=False, type="list"),
         response_code_action=dict(choices=["add", "remove"], required=False, type="str", default="add"),
         send=dict(required=False, type="str"),
-        recv=dict(required=False, type="str")
+        recv=dict(required=False, type="str"),
+        lrtm=dict(choices=["ENABLED", "DISABLED"], required=False, type="str")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -965,6 +974,7 @@ def main():
     response_code = module.params["response_code"]
     send = module.params["send"]
     recv = module.params["recv"]
+    lrtm = module.params["lrtm"]
     if response_code:
         response_code = [str(code).strip() for code in response_code]
 
