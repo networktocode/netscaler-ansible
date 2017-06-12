@@ -167,6 +167,11 @@ options:
     type: str
     default: add
     choices: ["add", "remove"]
+  send:
+    description:
+      - String to send to the service. Applicable to TCP-ECV, HTTP-ECV, and UDP-ECV monitors.
+    required: false
+    type: str
 '''
 
 EXAMPLES = '''
@@ -925,7 +930,8 @@ def main():
         monitor_use_ssl=dict(choices=["YES", "NO"], required=False, type="str"),
         monitor_username=dict(required=False, type="str"),
         response_code=dict(required=False, type="list"),
-        response_code_action=dict(choices=["add", "remove"], required=False, type="str", default="add")
+        response_code_action=dict(choices=["add", "remove"], required=False, type="str", default="add"),
+        send=dict(required=False, type="str")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -951,6 +957,7 @@ def main():
     validate_certs = module.params["validate_certs"]
     response_code_action = module.params["response_code_action"]
     response_code = module.params["response_code"]
+    send = module.params["send"]
     if response_code:
         response_code = [str(code).strip() for code in response_code]
 
