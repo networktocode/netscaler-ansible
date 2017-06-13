@@ -997,12 +997,7 @@ def main():
     validate_certs = module.params["validate_certs"]
     response_code_action = module.params["response_code_action"]
     response_code = module.params["response_code"]
-    send = module.params["send"]
-    recv = module.params["recv"]
-    lrtm = module.params["lrtm"]
-    interval = module.params["interval"]
-    resptimeout = module.params["resptimeout"]
-    retries = module.params["retries"]
+
     if response_code:
         response_code = [str(code).strip() for code in response_code]
 
