@@ -199,6 +199,14 @@ options:
     required: false
     default: 2
     type: int
+  retries:
+    description:
+      - Maximum number of probes to send to establish the state of a service for which a monitoring probe failed.
+      - Minimum value = 1
+      - Maximum value = 127
+    required: false
+    default: 3
+    type: int
 '''
 
 EXAMPLES = '''
@@ -962,7 +970,8 @@ def main():
         recv=dict(required=False, type="str"),
         lrtm=dict(choices=["ENABLED", "DISABLED"], required=False, type="str"),
         interval=dict(default=5,required=False, type="int"),
-        resptimeout=dict(default=2,required=False, type="int")
+        resptimeout=dict(default=2,required=False, type="int"),
+        retries=dict(default=3,required=False, type="int")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -993,6 +1002,7 @@ def main():
     lrtm = module.params["lrtm"]
     interval = module.params["interval"]
     resptimeout = module.params["resptimeout"]
+    retries = module.params["retries"]
     if response_code:
         response_code = [str(code).strip() for code in response_code]
 
@@ -1013,7 +1023,8 @@ def main():
         recv = module.params["recv"],
         lrtm = module.params["lrtm"],
         interval = module.params["interval"],
-        resptimeout = module.params["resptimeout"]
+        resptimeout = module.params["resptimeout"],
+        retries = module.params["retries"]
     )
 
     # "if isinstance(v, bool) or v" should be used if a bool variable is added to args
