@@ -191,7 +191,6 @@ options:
     required: false
     default: 5
     type: int
-    choices: ["ENABLED", "DISABLED"]
   resptimeout:
     description:
       - Amount of time for which the appliance must wait before it marks a probe as FAILED. Must be less than the value specified for the Interval parameter.
