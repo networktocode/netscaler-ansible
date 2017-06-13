@@ -192,6 +192,14 @@ options:
     default: 5
     type: int
     choices: ["ENABLED", "DISABLED"]
+  resptimeout:
+    description:
+      - Amount of time for which the appliance must wait before it marks a probe as FAILED. Must be less than the value specified for the Interval parameter.
+      - Minimum value = 1
+      - Maximum value = 20939
+    required: false
+    default: 2
+    type: int
 '''
 
 EXAMPLES = '''
@@ -954,7 +962,8 @@ def main():
         send=dict(required=False, type="str"),
         recv=dict(required=False, type="str"),
         lrtm=dict(choices=["ENABLED", "DISABLED"], required=False, type="str"),
-        interval=dict(default=5,required=False, type="int")
+        interval=dict(default=5,required=False, type="int"),
+        resptimeout=dict(default=2,required=False, type="int")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -984,6 +993,7 @@ def main():
     recv = module.params["recv"]
     lrtm = module.params["lrtm"]
     interval = module.params["interval"]
+    resptimeout = module.params["resptimeout"]
     if response_code:
         response_code = [str(code).strip() for code in response_code]
 
@@ -1003,7 +1013,8 @@ def main():
         send = module.params["send"],
         recv = module.params["recv"],
         lrtm = module.params["lrtm"],
-        interval = module.params["interval"]
+        interval = module.params["interval"],
+        resptimeout = module.params["resptimeout"]
     )
 
     # "if isinstance(v, bool) or v" should be used if a bool variable is added to args
