@@ -260,14 +260,17 @@ class Netscaler(object):
         self.verify = verify
         self.api_endpoint = api_endpoint
         self.headers = {"Content-Type": "application/json"}
-        self.port = kwargs.get("port", "")
+        if "port" not in kwargs:
+            self.port = ""
+        else:
+            self.port = ":{}".format(kwargs["port"])
 
         if use_ssl:
-            self.url = "https:{port}//{lb}/nitro/v1/config/".format(port=self.port, lb=self.host)
-            self.stat_url = "https:{port}//{lb}/nitro/v1/stat/".format(port=self.port, lb=self.host)
+            self.url = "https://{lb}{port}/nitro/v1/config/".format(lb=self.host, port=self.port)
+            self.stat_url = "https://{lb}{port}/nitro/v1/stat/".format(lb=self.host, port=self.port)
         else:
-            self.url = "http:{port}//{lb}/nitro/v1/config/".format(port=self.port, lb=self.host)
-            self.stat_url = "http:{port}//{lb}/nitro/v1/stat/".format(port=self.port, lb=self.host)
+            self.url = "http://{lb}{port}/nitro/v1/config/".format(lb=self.host, port=self.port)
+            self.stat_url = "http://{lb}{port}/nitro/v1/stat/".format(lb=self.host, port=self.port)
 
     def change_state(self, object_name, state):
         """
