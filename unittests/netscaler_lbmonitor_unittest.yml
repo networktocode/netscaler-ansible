@@ -33,6 +33,30 @@
           monitor_name: "monitor01"
           monitor_type: "TCP"
 
+      - name: DISABLE TCP MONITOR - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor01"
+          monitor_state: "disabled"
+
+      - name: DISABLE TCP MONITOR AGAIN - NO CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor01"
+          monitor_state: "disabled"
+
+      - name: DISABLE TCP MONITOR - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor01"
+          monitor_state: "enabled"
+
       - name: CREATE HTTP MONITOR - CHANGE
         netscaler_lbmonitor:
           host: "{{ inventory_hostname }}"
@@ -195,6 +219,7 @@
     hosts: netscaler
     connection: local
     gather_facts: False
+    tags: cleanup
 
     tasks:
       - name: CLEANUP MONITORS - CHANGE

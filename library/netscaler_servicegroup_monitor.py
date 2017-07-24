@@ -646,13 +646,31 @@ class ServiceGroup(Netscaler):
         response = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
 
         return response
+    
+    def change_monitor_state(self, servicegroup_name, monitor_name, state):
+        """
+        The purpose of this method is to change the state of a monitor bound to a  servicegroup object from either
+        disabled to enabled, or enabled to disabled.
+        :param servicegroup_name: Type str.
+                                  The name of the servicegroup object to have its montor's state changed.
+        :param monitor_name: Type str.
+                             The name of the lbmonitor object to have its state changed.
+        :param state: Type str.
+                      The state the object should be in after execution. Valid values are "enable" or "disable"
+        :return: The response from the request to delete the object.
+        """
+        url = self.url + "lbmonitor?action={}".format(state)
+        body = {"lbmonitor": {"servicegroupname": servicegroup_name, "monitorname": monitor_name}}
+        response = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return response
 
     def change_state(self, object_name, state):
         """
         The purpose of this method is to change the state of a servicegroup object from either disabled to enabled, or
         enabled to disabled.
         :param object_name: Type str.
-                            The name of the servicegroup object to be deleted.
+                            The name of the servicegroup object to have its state changed.
         :param state: Type str.
                       The state the object should be in after execution. Valid values are "enable" or "disable"
         :return: The response from the request to delete the object.
@@ -705,6 +723,44 @@ class ServiceGroup(Netscaler):
 
         return config
 
+    def config_update_monitor_binding(self, module, update_config):
+        """
+        This method is used to handle the logic for Ansible modules when the "state" is set to "present" and the
+        proposed config modifies an existing servicegroup to monitor binding. If the object's state needs to be updated,
+        the "state" key,value is popped from the update_config in order to prevent it from being included in a config
+        update when there are updates besides state change. The change_monitor_state method is then used to modify the
+        object's state. After the object's state matches the proposed state, a check is done to see if the update_config
+        has any keys other than the "name" keys (len > 2). If there are more updates to make, the put_config method is
+        used to push those to the Netscaler.
+        :param module: The AnsibleModule instance started by the task.
+        :param update_config: Type dict.
+                              The configuration to send to the Nitro API.
+        :return: The list of config dictionaries corresponding to the config returned by the Ansible module.
+        """
+        config = []
+
+        if "state" in update_config:
+            config_state = update_config.pop("state")[:-1].lower()
+            if not module.check_mode:
+                config_status = self.change_monitor_state(update_config["servicegroupname"],
+                                update_config["monitor_name"], config_state)
+                if config_status.ok:
+                    config.append({"method": "post", "url": config_status.url,
+                                   "body": {"servicegroupname": update_config["servicegroupname"],
+                                   "monitorname": update_config["monitor_name"]}})
+                else:
+                    module.fail_json(msg=config_status.content)
+            else:
+                url = self.url + "lbmonitor?action={}".format(config_state)
+                config.append({"method": "post", "url": url,
+                               "body": {"servicegroupname": update_config["servicegroupname"],
+                               "monitorname": update_config["monitor_name"]}})
+
+        if len(update_config) > 2:
+            module.fail_json(msg="The Netscaler Nitro API does not support modifying the Service Group to Monitor Bindings")
+
+        return config
+
     def get_all(self):
         """
         The purpose of this method is to retrieve every object's configuration for the instance's API endpoint.
@@ -754,16 +810,55 @@ class ServiceGroup(Netscaler):
         else:
             return "none", {}
 
+    @staticmethod
+    def get_diff_monitor_binding(proposed, existing):
+        """
+        This method is used to compare the proposed lbmonitor binding config with what currently exists on the Netscaler.
+        :param proposed: Type dict.
+                         A dictionary corresponding to the proposed configuration item. The dictionary must have a
+                         "name" key.
+        :param existing: Type dict.
+                         A dictionary corresponding to the existing configuration for the object. This can be retrieved
+                         using the get_existing_attrs method.
+        :return: A tuple indicating whether the config is a new object, will update an existing object, or make no
+                 changes, and a dict that corresponds to the body of a config request using the Nitro API.
+        """
+        diff = dict(set(proposed.items()).difference(existing.items()))
+
+        if diff == proposed:
+            return "new", proposed
+        elif diff:
+            diff["servicegroupname"] = proposed["servicegroupname"]
+            diff["monitor_name"] = proposed["monitor_name"]
+            return "update", diff
+        else:
+            return "none", {}
+
+    def get_monitor_binding(self, servicegroup_name, monitor_name):
+        """
+        This method is used to get a particular servicegroup to monitor binding.
+        :param servicegroup_name: Type str.
+                                  The name of the servicegroup object.
+        :param monitor_name: Type str.
+                             The name of the monitor object.
+        :return: A dictionary of the current servers bound to the servicegroup object. If no bindings
+                 exist, then an empty dictionary is returned.
+        """
+        url = self.url + self.api_endpoint + "_lbmonitor_binding/" + servicegroup_name + \
+              "?filter=monitor_name:{}".format(monitor_name)
+        response = self.session.get(url, headers=self.headers, verify=self.verify)
+
+        return response.json().get("servicegroup_lbmonitor_binding", [{}])[0]
+
     def get_monitor_bindings(self, object_name):
         """
         This method is used to get the servicegroup's current monitor bindings.
         :param object_name: Type str.
                             The name of the servicegroup object.
         :return: A list of dictionaries of the current servers bound to the servicegroup object. If no bindings
-                 exist, then an empty dictionary is returned.
+                 exist, then an empty list is returned.
         """
-        url = self.url + self.api_endpoint + "_lbmonitor_binding/" + object_name + \
-              "?attrs=servicegroupname,monitor_name,weight"
+        url = self.url + self.api_endpoint + "_lbmonitor_binding/" + object_name
         response = self.session.get(url, headers=self.headers, verify=self.verify)
 
         return response.json().get("servicegroup_lbmonitor_binding", [])
@@ -774,7 +869,7 @@ class ServiceGroup(Netscaler):
         :param object_name: Type str.
                             The name of the servicegroup object.
         :return: A list of dictionaries of the current servers bound to the servicegroup object. If no bindings
-                 exist, then an empty dictionary is returned.
+                 exist, then an empty list is returned.
         """
         url = self.url + self.api_endpoint + "_servicegroupmember_binding/" + object_name + \
               "?attrs=servicegroupname,servername,port,weight"
@@ -883,6 +978,7 @@ def main():
         state=dict(choices=["absent", "present"], default="present", type="str"),
         partition=dict(required=False, type="str"),
         monitor_name=dict(required=True, type="str"),
+        monitor_state=dict(choices=["disabled", "enabled"], required=False, type="str"),
         servicegroup_name=dict(required=True, type="str"),
         weight=dict(required=False, type="str")
     )
@@ -908,10 +1004,14 @@ def main():
     use_ssl = module.params["use_ssl"]
     username = module.params["username"]
     validate_certs = module.params["validate_certs"]
+    monitor_state = module.params["monitor_state"]
+    if monitor_state:
+        monitor_state = monitor_state.upper()
 
     args = dict(
         monitor_name=module.params["monitor_name"],
         servicegroupname=module.params["servicegroup_name"],
+        state=monitor_state,
         weight=module.params["weight"]
     )
 
@@ -932,17 +1032,17 @@ def main():
         if not session_switch.ok:
             module.fail_json(msg=session_switch.content, reason="Unable to Switch Partitions")
 
-    all_existing = session.get_monitor_bindings(proposed["servicegroupname"])
+    existing = session.get_monitor_binding(args["servicegroupname"], args["monitor_name"])
 
     if state == "present":
-        results = change_config(session, module, proposed, all_existing)
+        results = change_config(session, module, proposed, existing)
     else:
-        results = delete_monitor_binding(session, module, proposed, all_existing)
+        results = delete_monitor_binding(session, module, proposed, existing)
 
     return module.exit_json(**results)
 
 
-def change_config(session, module, proposed, all_existing):
+def change_config(session, module, proposed, existing):
     """
     The purpose of this function is to determine if the binding needs to be pushed to the Netscaler. A new servicegroup
     to monitor binding will be configured if the binding does not currently exist.
@@ -956,23 +1056,21 @@ def change_config(session, module, proposed, all_existing):
     """
     changed = False
     config = []
-    existing = {}
+    all_existing = session.get_monitor_bindings(proposed["servicegroupname"])
 
-    proposed_minimum = dict(servicegroupname=proposed["servicegroupname"], monitor_name=proposed["monitor_name"])
-
-    for binding in all_existing:
-        if proposed_minimum == dict(servicegroupname=binding["servicegroupname"], monitor_name=binding["monitor_name"]):
-            existing = proposed
-            break
-
-    if not  existing:
+    config_method, config_diff = session.get_diff_monitor_binding(proposed, existing)
+    if config_method == "new":
         changed = True
-        config = session.add_monitor_binding(module, proposed)
+        config_diff.pop("state", "")
+        config = session.add_monitor_binding(module, config_diff)
+    elif config_method == "update":
+        changed = True
+        config = session.config_update_monitor_binding(module, config_diff)
 
     return {"all_existing": all_existing, "changed": changed, "config": config, "existing": existing}
 
 
-def delete_monitor_binding(session, module, proposed, all_existing):
+def delete_monitor_binding(session, module, proposed, existing):
     """
     The purpose of this function is to delete a servicegroup to lbmonitor binding from the Netscaler. Checks are
     currently only done to ensure the binding exists before submitting it for deletion.
@@ -986,18 +1084,11 @@ def delete_monitor_binding(session, module, proposed, all_existing):
     """
     changed = False
     config = []
+    all_existing = session.get_monitor_bindings(proposed["servicegroupname"])
 
-    proposed_minimum = dict(servicegroupname=proposed["servicegroupname"], monitor_name=proposed["monitor_name"])
-
-    for binding in all_existing:
-        if proposed_minimum == dict(servicegroupname=binding["servicegroupname"], monitor_name=binding["monitor_name"]):
-            changed = True
-            config = session.remove_monitor_binding(module, proposed)
-            existing = proposed
-            break
-            
-    if not config:
-        existing = {}
+    if existing:
+        changed = True
+        config = session.remove_monitor_binding(module, proposed)
 
     return {"all_existing": all_existing, "changed": changed, "config": config, "existing": existing}
 

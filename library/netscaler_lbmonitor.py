@@ -680,22 +680,6 @@ class LBMonitor(Netscaler):
 
         return short_respcodes
 
-    def change_state(self, object_name, state):
-        """
-        The purpose of this method is to change the state of a monitor object from either disabled to enabled, or
-        enabled to disabled.
-        :param object_name: Type str.
-                            The name of the servicegroup object to be deleted.
-        :param state: Type str.
-                      The state the object should be in after execution. Valid values are "enable" or "disable"
-        :return: The response from the request to delete the object.
-        """
-        url = self.url + self.api_endpoint + "?action={}".format(state)
-        body = {self.api_endpoint: {"monitorname": object_name}}
-        response = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
-
-        return response
-
     def config_delete(self, module, object_name, monitor_type):
         """
         This method is used to handle the logic for Ansible modules when the "state" is set to "absent." The
@@ -724,12 +708,7 @@ class LBMonitor(Netscaler):
     def config_update(self, module, update_config):
         """
         This method is used to handle the logic for Ansible modules when the "state" is set to "present" and the
-        proposed config modifies an existing monitor object. If the object's state needs to be updated, the "state"
-        key,value is popped from the update_config in order to prevent it from being included in a config update when
-        there are updates besides state change. The change_state method is then used to modify the object's state. After
-        the object's state matches the proposed state, a check is done to see if the update_config has any keys other
-        than the "name" key (len > 1). If there are more updates to make, the put_config method is used to push those to
-        the Netscaler.
+        proposed config modifies an existing monitor object.
         :param module: The AnsibleModule instance started by the task.
         :param update_config: Type dict.
                               The configuration to send to the Nitro API.
@@ -737,28 +716,14 @@ class LBMonitor(Netscaler):
         """
         config = []
 
-        if "state" in update_config:
-            config_state = update_config.pop("state")[:-1].lower()
-            if not module.check_mode:
-                config_status = self.change_state(update_config["monitorname"], config_state)
-                if config_status.ok:
-                    config.append({"method": "post", "url": config_status.url,
-                                   "body": {"monitorname": update_config["monitorname"]}})
-                else:
-                    module.fail_json(msg=config_status.content)
-            else:
-                url = self.url + self.api_endpoint + "?action={}".format(config_state)
-                config.append({"method": "post", "url": url, "body": {"monitorname": update_config["monitorname"]}})
-
-        if len(update_config) > 1:
-            if not module.check_mode:
-                config_status = self.put_update(update_config)
-                if config_status.ok:
-                    config.append({"method": "put", "url": self.url, "body": update_config})
-                else:
-                    module.fail_json(msg=config_status.content)
-            else:
+        if not module.check_mode:
+            config_status = self.put_update(update_config)
+            if config_status.ok:
                 config.append({"method": "put", "url": self.url, "body": update_config})
+            else:
+                module.fail_json(msg=config_status.content)
+        else:
+            config.append({"method": "put", "url": self.url, "body": update_config})
 
         return config
 

@@ -73,7 +73,6 @@
           monitor_name: "monitor02"
           servicegroup_name: "servicegroup02"
           weight: "20"
-        tags: test
 
       - name: CREATE SERVICE GROUP TO MONITOR BINDING WITH WEIGHT AGAIN - NO CHANGE
         netscaler_servicegroup_monitor:
@@ -83,7 +82,33 @@
           monitor_name: "monitor02"
           servicegroup_name: "servicegroup02"
           weight: "20"
-        tags: test
+
+      - name: DISABLE SERVICE GROUP TO MONITOR BINDING - CHANGE
+        netscaler_servicegroup_monitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          monitor_name: "monitor02"
+          servicegroup_name: "servicegroup02"
+          monitor_state: "disabled"
+
+      - name: DISABLE SERVICE GROUP TO MONITOR BINDING AGAIN - NO CHANGE
+        netscaler_servicegroup_monitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          monitor_name: "monitor02"
+          servicegroup_name: "servicegroup02"
+          monitor_state: "disabled"
+
+      - name: ENABLE SERVICE GROUP TO MONITOR BINDING - CHANGE
+        netscaler_servicegroup_monitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          monitor_name: "monitor02"
+          servicegroup_name: "servicegroup02"
+          monitor_state: "enabled"
 
       - name: REMOVE SERVICE GROUP TO MONITOR BINDING - CHANGE
         netscaler_servicegroup_monitor:
