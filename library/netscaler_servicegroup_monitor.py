@@ -91,6 +91,14 @@ options:
       - The monitor name which is being bound to a service group.
     required: True
     type: str
+  monitor_state:
+    descritpion:
+      - The state of the monitor for the particular service group binding.
+      - The API only supports enabling and disabling a monitor after it is created.
+      - New bindings that are set to be disabled, will be created in an enabled state, then disabled.
+    required: false
+    type: str
+    choices: ["disabled", "enabled"]
   servicegroup_name:
     description:
       - The service group name which the server is being bound to.
@@ -582,6 +590,7 @@ class ServiceGroup(Netscaler):
         :return: The config dict corresponding to the config returned by the Ansible module.
         """
         config = []
+        config_state = new_config.pop("state", "ENABLED")[:-1].lower()
 
         if not module.check_mode:
             config_status = self.bind_server(new_config)
@@ -589,9 +598,25 @@ class ServiceGroup(Netscaler):
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
                 module.fail_json(msg=config_status.content)
+
+            if config_state == "disable":
+                config_status = self.change_monitor_state(new_config["servicegroupname"],
+                                new_config["monitor_name"], config_state)
+                if config_status.ok:
+                    config.append({"method": "post", "url": config_status.url,
+                                   "body": {"servicegroupname": new_config["servicegroupname"],
+                                   "monitorname": new_config["monitor_name"]}})
+                else:
+                    module.fail_json(msg=config_status.content)
+
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "_lbmonitor_binding",
                            "body": new_config})
+
+            if config_state == "disable":
+                config.append({"method": "post", "url": self.url + "lbmonitor?action=disable",
+                               "body": {"servicegroupname": new_config["servicegroupname"],
+                               "monitorname": new_config["monitor_name"]}})
 
         return config
 
@@ -606,6 +631,8 @@ class ServiceGroup(Netscaler):
         :return: The config dict corresponding to the config returned by the Ansible module.
         """
         config = []
+
+
 
         if not module.check_mode:
             config_status = self.bind_server(new_config)
@@ -1061,7 +1088,6 @@ def change_config(session, module, proposed, existing):
     config_method, config_diff = session.get_diff_monitor_binding(proposed, existing)
     if config_method == "new":
         changed = True
-        config_diff.pop("state", "")
         config = session.add_monitor_binding(module, config_diff)
     elif config_method == "update":
         changed = True
