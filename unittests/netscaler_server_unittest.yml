@@ -146,7 +146,6 @@
           server_name: "server04"
           ip_address: "10.1.1.100"
           config_override: true
-        ignore_errors: yes
         tags: dup_name
 
       - name: CONFIG SERVER WITH DUPLICATE IP OVERRIDE - CHANGE
@@ -157,7 +156,6 @@
           server_name: "server25"
           ip_address: "10.1.1.100"
           config_override: true
-        ignore_errors: yes
         tags: dup_ip
 
       - name: CONFIG SERVER WITHOUT NAME - FAIL

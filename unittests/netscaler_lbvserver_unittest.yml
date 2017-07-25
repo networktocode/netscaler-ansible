@@ -235,6 +235,31 @@
         ignore_errors: yes
         tags: dup_ip
 
+      - name: CONFIG LB VSERVER DUPLICATE NAME OVERRIDE - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver01"
+          ip_address: "10.10.20.100"
+          service_type: "HTTP"
+          config_override: true
+        ignore_errors: yes
+        tags: dup_name
+
+      - name: CONFIG LB VSERVER DUPLICATE IP AND PORT OVERRIDE - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver15"
+          lbvserver_port: 80
+          ip_address: "10.10.20.100"
+          service_type: "HTTP"
+          config_override: true
+        ignore_errors: yes
+        tags: dup_ip
+
       - name: CONFIG LB VSERVER INVALID TRAFFIC DOMAIN - FAIL
         netscaler_lbvserver:
           host: "{{ inventory_hostname }}"
@@ -385,6 +410,7 @@
           - lbvserver04
           - lbvserver05
           - lbvserver10
+          - lbvserver15
           - lbvserver20
           - lbvserver100
 
