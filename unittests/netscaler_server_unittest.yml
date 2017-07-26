@@ -138,7 +138,7 @@
         ignore_errors: yes
         tags: dup_ip
 
-      - name: CONFIG SERVER WITH DUPLICATE NAME OVERRIDE - CHANGE
+      - name: CONFIG SERVER WITH DUPLICATE NAME OVERRIDE (RE-IP SERVER) - CHANGE
         netscaler_server:
           host: "{{ inventory_hostname }}"
           username: "{{ username }}"
@@ -148,7 +148,7 @@
           config_override: true
         tags: dup_name
 
-      - name: CONFIG SERVER WITH DUPLICATE IP OVERRIDE - CHANGE
+      - name: CONFIG SERVER WITH DUPLICATE IP OVERRIDE (RE-NAME SERVER) - CHANGE
         netscaler_server:
           host: "{{ inventory_hostname }}"
           username: "{{ username }}"

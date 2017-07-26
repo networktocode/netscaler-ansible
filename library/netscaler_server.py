@@ -637,29 +637,6 @@ class Server(Netscaler):
     def __init__(self, host, user, passw, secure=True, verify=False, api_endpoint="server", **kwargs):
         super(Server, self).__init__(host, user, passw, secure, verify, api_endpoint, **kwargs)
 
-    def check_duplicate_ip(self, proposed):
-        """
-        The purpose of this method is to identify if the proposed server has an "ipaddress" value that already exists in
-        the current partition and traffic domain, in order to prevent an invalid configuration request (server "name"
-        must be unique on a per partition basis, and "ipaddress" must be unique on a per traffic domain basis).
-        :param proposed: Type dict.
-                         The proposed server configuration.
-        :return: A dictionary with the information about colliding ipaddress. An empty dictionary is returned if all
-                 "ipaddress" values are unique.
-        """
-        ip_address = proposed["ipaddress"]
-        traffic_domain = proposed["td"]
-
-        colliding_ip_dict = {}
-        colliding_ip = self.get_server_by_ip_td(ip_address, traffic_domain)
-        if colliding_ip:
-            colliding_ip_dict["ip_address"] = proposed["ipaddress"]
-            colliding_ip_dict["traffic_domain"] = proposed["td"]
-            colliding_ip_dict["proposed_name"] = proposed["name"]
-            colliding_ip_dict["existing_name"] = colliding_ip["name"]
-
-        return colliding_ip_dict
-
     def get_all(self):
         """
         The purpose of this method is to retrieve every object's configuration for the instance's API endpoint.
@@ -701,7 +678,6 @@ class Server(Netscaler):
         response = self.session.get(url, headers=self.headers, verify=self.verify)
 
         return response.json().get("server", [{}])[0]
-
 
 
 def main():
@@ -807,12 +783,15 @@ def change_config(session, module, proposed, existing):
 
     config_method, config_diff = Server.get_diff(proposed, existing)
     if "ipaddress" in config_diff:
-        dup_ip_check = session.check_duplicate_ip(proposed)
-        if dup_ip_check and not module.params["config_override"]:
-            module.fail_json(msg="Changing a Server's Name requires setting the config_override param to True:\n{}".format(dup_ip_check))
-        elif dup_ip_check:
+        ip = proposed["ipaddress"]
+        td = proposed["td"]
+        dup_server = session.get_server_by_ip_td(ip, td)
+        if dup_server and not module.params["config_override"]:
+            dup_dict = dict(proposed_name=proposed["name"], existing_name=dup_server["name"], ip_address=ip, traffic_domain=td)
+            module.fail_json(msg="Changing a Server's Name requires setting the config_override param to True.", conflict=dup_dict)
+        elif dup_server:
             changed = True
-            rename = session.config_rename(module, dup_ip_check["existing_name"], proposed["name"])
+            rename = session.config_rename(module, dup_server["name"], proposed["name"])
             new_existing = session.get_existing_attrs(proposed["name"], proposed.keys())
             config_method, config_diff = Server.get_diff(proposed, new_existing)
 
@@ -825,8 +804,8 @@ def change_config(session, module, proposed, existing):
             module.fail_json(msg="Updating a Server's Traffic Domain is not Supported")
 
         if "ipaddress" in config_diff and not module.params["config_override"]:
-            module.fail_json(msg="Updating a Server's IP Addresses requires setting the config_override param to True:\n{}".format(
-                             dict(name=proposed["name"], proposed_ip=proposed["ipaddress"], existing_ip=existing["ipaddress"])))
+            dup_dict = dict(name=proposed["name"], proposed_ip=proposed["ipaddress"], existing_ip=existing["ipaddress"], traffic_domain=proposed["td"])
+            module.fail_json(msg="Updating a Server's IP Addresses requires setting the config_override param to True.", conflict=dup_dict)
 
         changed = True
         config = session.config_update(module, config_diff)
