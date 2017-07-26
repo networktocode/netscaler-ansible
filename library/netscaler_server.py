@@ -91,6 +91,11 @@ options:
       - A comment to add to the object.
     required: false
     type: str
+  config_override:
+    description:
+      - Setting to True enables changing IP Addresses and Names
+      - Servers will be renamed if the IP Address is aleady being used in the same Traffic Domain by an object with a different name.
+      - Servers will have their IP Addresses changed if the Server Name is already in use but is mapped to a different IP Address.
   ip_address:
      description:
        - The IP address of the Server Object.
@@ -212,6 +217,21 @@ class Netscaler(object):
             self.url = "http://{lb}{port}/nitro/v1/config/".format(lb=self.host, port=self.port)
             self.stat_url = "http://{lb}{port}/nitro/v1/stat/".format(lb=self.host, port=self.port)
 
+    def change_name(self, existing_name, proposed_name):
+        """
+        The purpose of this method is to change the name of a server object.
+        :param existing_name: Type str.
+                              The name of the server object to be renamed.
+        :param proposed_name: Type str.
+                              The new name of the server object.
+        :return: The response from the request to delete the object.
+        """
+        url = self.url + self.api_endpoint + "?action=rename"
+        body = {self.api_endpoint: {"name": existing_name, "newname":proposed_name}}
+        response = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return response
+
     def change_state(self, object_name, state):
         """
         The purpose of this method is to change the state of an object from either disabled to enabled, or enabled to
@@ -272,6 +292,33 @@ class Netscaler(object):
                 module.fail_json(msg=config_status.content)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint, "body": new_config})
+
+        return config
+
+    def config_rename(self, module, existing_name, proposed_name):
+        """
+        This method is used to handle the logic for Ansible modules when the "state" is set to "present" and the
+        proposed IP Address matches the IP Address of another Server in the same Traffic Domain. The change_name
+        method is used to post the configuration to the Netscaler.
+        :param module: The AnsibleModule instance started by the task.
+        :param existing_name: Type str.
+                              The current name of the Server object to be changed.
+        :param proposed_name: Type str.
+                              The name the Server object should be changed to.
+        :return: A list with config dictionary corresponding to the config returned by the Ansible module.
+        """
+        config = []
+
+        rename_config = {"name": existing_name, "newname": proposed_name}
+
+        if not module.check_mode:
+            config_status = self.change_name(existing_name, proposed_name)
+            if config_status.ok:
+                config.append({"method": "post", "url": config_status.url, "body": rename_config})
+            else:
+                module.fail_json(msg=config_status.content)
+        else:
+            config.append({"method": "post", "url": self.url + self.api_endpoint + "?action=rename", "body": rename_config})
 
         return config
 
@@ -590,29 +637,6 @@ class Server(Netscaler):
     def __init__(self, host, user, passw, secure=True, verify=False, api_endpoint="server", **kwargs):
         super(Server, self).__init__(host, user, passw, secure, verify, api_endpoint, **kwargs)
 
-    def check_duplicate_ip(self, proposed):
-        """
-        The purpose of this method is to identify if the proposed server has an "ipaddress" value that already exists in
-        the current partition and traffic domain, in order to prevent an invalid configuration request (server "name"
-        must be unique on a per partition basis, and "ipaddress" must be unique on a per traffic domain basis).
-        :param proposed: Type dict.
-                         The proposed server configuration.
-        :return: A dictionary with the information about colliding ipaddress. An empty dictionary is returned if all
-                 "ipaddress" values are unique.
-        """
-        ip_address = proposed["ipaddress"]
-        traffic_domain = proposed["td"]
-
-        colliding_ip_dict = {}
-        colliding_ip = self.get_server_by_ip_td(ip_address, traffic_domain)
-        if colliding_ip:
-            colliding_ip_dict["ip_address"] = proposed["ipaddress"]
-            colliding_ip_dict["traffic_domain"] = proposed["td"]
-            colliding_ip_dict["proposed_name"] = proposed["name"]
-            colliding_ip_dict["existing_name"] = colliding_ip["name"]
-
-        return colliding_ip_dict
-
     def get_all(self):
         """
         The purpose of this method is to retrieve every object's configuration for the instance's API endpoint.
@@ -656,7 +680,6 @@ class Server(Netscaler):
         return response.json().get("server", [{}])[0]
 
 
-
 def main():
     argument_spec = dict(
         host=dict(required=True, type="str"),
@@ -669,6 +692,7 @@ def main():
         state=dict(choices=["absent", "present"], default="present", type="str"),
         partition=dict(required=False, type="str"),
         comment=dict(required=False, type="str"),
+        config_override = dict(choices=[True, False], type="bool", default=False),
         ip_address=dict(required=False, type="str"),
         server_name=dict(required=True, type="str"),
         server_state=dict(choices=["disabled", "enabled"], default="enabled", type="str"),
@@ -696,7 +720,6 @@ def main():
     use_ssl = module.params["use_ssl"]
     username = module.params["username"]
     validate_certs = module.params["validate_certs"]
-
     args = dict(
         comment=module.params["comment"],
         ipaddress=module.params["ip_address"],
@@ -756,26 +779,39 @@ def change_config(session, module, proposed, existing):
     """
     changed = False
     config = []
+    rename = []
 
     config_method, config_diff = Server.get_diff(proposed, existing)
     if "ipaddress" in config_diff:
-        dup_ip_check = session.check_duplicate_ip(proposed)
-        if dup_ip_check:
-            module.fail_json(msg="Unique names correspond to the same IP Address:\n{}".format(dup_ip_check))
+        ip = proposed["ipaddress"]
+        td = proposed["td"]
+        dup_server = session.get_server_by_ip_td(ip, td)
+        if dup_server and not module.params["config_override"]:
+            dup_dict = dict(proposed_name=proposed["name"], existing_name=dup_server["name"], ip_address=ip, traffic_domain=td)
+            module.fail_json(msg="Changing a Server's Name requires setting the config_override param to True.", conflict=dup_dict)
+        elif dup_server:
+            changed = True
+            rename = session.config_rename(module, dup_server["name"], proposed["name"])
+            new_existing = session.get_existing_attrs(proposed["name"], proposed.keys())
+            config_method, config_diff = Server.get_diff(proposed, new_existing)
 
     if config_method == "new":
         changed = True
         config = session.config_new(module, config_diff)
 
     elif config_method == "update":
-        if "ipaddress" in config_diff:
-            module.fail_json(msg="Updating IP Addresses is not Supported.")
-
         if "td" in config_diff:
             module.fail_json(msg="Updating a Server's Traffic Domain is not Supported")
 
+        if "ipaddress" in config_diff and not module.params["config_override"]:
+            dup_dict = dict(name=proposed["name"], proposed_ip=proposed["ipaddress"], existing_ip=existing["ipaddress"], traffic_domain=proposed["td"])
+            module.fail_json(msg="Updating a Server's IP Addresses requires setting the config_override param to True.", conflict=dup_dict)
+
         changed = True
         config = session.config_update(module, config_diff)
+    
+    if rename:
+        config.append(rename[0])
 
     return {"changed": changed, "config": config, "existing": existing}
 

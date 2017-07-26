@@ -235,6 +235,31 @@
         ignore_errors: yes
         tags: dup_ip
 
+      - name: CONFIG LB VSERVER DUPLICATE NAME OVERRIDE (RE-IP EXISTING LB VSERVER) - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver01"
+          ip_address: "10.10.20.100"
+          service_type: "HTTP"
+          config_override: true
+        ignore_errors: yes
+        tags: dup_name
+
+      - name: CONFIG LB VSERVER DUPLICATE IP AND PORT OVERRIDE (RE-NAME EXISTING LB VSERVER) - CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver15"
+          lbvserver_port: 80
+          ip_address: "10.10.20.100"
+          service_type: "HTTP"
+          config_override: true
+        ignore_errors: yes
+        tags: dup_ip
+
       - name: CONFIG LB VSERVER INVALID TRAFFIC DOMAIN - FAIL
         netscaler_lbvserver:
           host: "{{ inventory_hostname }}"
@@ -328,8 +353,8 @@
           host: "{{ inventory_hostname }}"
           username: "{{ username }}"
           password: "{{ password }}"
-          lbvserver_name: "lbvserver01"
-          ip_address: "10.10.20.21" 
+          lbvserver_name: "lbvserver15"
+          ip_address: "10.10.20.100" 
           service_type: "SSL_BRIDGE"
           lbmethod: "ROUNDROBIN"
           lbvserver_port: 80
@@ -342,8 +367,8 @@
           host: "{{ inventory_hostname }}"
           username: "{{ username }}"
           password: "{{ password }}"
-          lbvserver_name: "lbvserver01"
-          ip_address: "10.10.20.21" 
+          lbvserver_name: "lbvserver15"
+          ip_address: "10.10.20.100" 
           service_type: "HTTP"
           lbvserver_port: 80
           traffic_domain: 10
@@ -355,8 +380,8 @@
           host: "{{ inventory_hostname }}"
           username: "{{ username }}"
           password: "{{ password }}"
-          lbvserver_name: "lbvserver01"
-          ip_address: "10.10.20.21" 
+          lbvserver_name: "lbvserver15"
+          ip_address: "10.10.20.100" 
           service_type: "HTTP"
           lbvserver_port: 443
         ignore_errors: yes
@@ -385,6 +410,7 @@
           - lbvserver04
           - lbvserver05
           - lbvserver10
+          - lbvserver15
           - lbvserver20
           - lbvserver100
 

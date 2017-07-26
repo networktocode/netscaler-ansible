@@ -138,6 +138,26 @@
         ignore_errors: yes
         tags: dup_ip
 
+      - name: CONFIG SERVER WITH DUPLICATE NAME OVERRIDE (RE-IP SERVER) - CHANGE
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server04"
+          ip_address: "10.1.1.100"
+          config_override: true
+        tags: dup_name
+
+      - name: CONFIG SERVER WITH DUPLICATE IP OVERRIDE (RE-NAME SERVER) - CHANGE
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server25"
+          ip_address: "10.1.1.100"
+          config_override: true
+        tags: dup_ip
+
       - name: CONFIG SERVER WITHOUT NAME - FAIL
         netscaler_server:
           host: "{{ inventory_hostname }}"
@@ -199,6 +219,7 @@
           - "server03"
           - "server04"
           - "server05"
+          - "server25"
         tags: cleanup
 
       - name: DELETE SEVER IN PARTITION

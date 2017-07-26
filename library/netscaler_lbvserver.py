@@ -102,6 +102,13 @@ options:
       - A comment about the lbvserver
     required: false
     type: str
+  config_override:
+    description:
+      - Setting to True enables changing IP Addresses and Names
+      - If an LB VServer with a different name is configured with the same IP Address,
+        Traffic Domain, and Port, then the existing VServer will be renamed.
+      - If an LB VServer already exists with the same Name, but different IP Address,
+        then the existing VServer will have its IP Address updated.
   conn_failover:
     description:
       - The lbvserver connection setting
@@ -288,6 +295,21 @@ class Netscaler(object):
             self.url = "http://{lb}{port}/nitro/v1/config/".format(lb=self.host, port=self.port)
             self.stat_url = "http://{lb}{port}/nitro/v1/stat/".format(lb=self.host, port=self.port)
 
+    def change_name(self, existing_name, proposed_name):
+        """
+        The purpose of this method is to change the name of a server object.
+        :param existing_name: Type str.
+                              The name of the server object to be renamed.
+        :param proposed_name: Type str.
+                              The new name of the server object.
+        :return: The response from the request to delete the object.
+        """
+        url = self.url + self.api_endpoint + "?action=rename"
+        body = {self.api_endpoint: {"name": existing_name, "newname":proposed_name}}
+        response = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return response
+
     def change_state(self, object_name, state):
         """
         The purpose of this method is to change the state of an object from either disabled to enabled, or enabled to
@@ -348,6 +370,33 @@ class Netscaler(object):
                 module.fail_json(msg=config_status.content)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint, "body": new_config})
+
+        return config
+
+    def config_rename(self, module, existing_name, proposed_name):
+        """
+        This method is used to handle the logic for Ansible modules when the "state" is set to "present" and the
+        proposed IP Address matches the IP Address of another Server in the same Traffic Domain. The change_name
+        method is used to post the configuration to the Netscaler.
+        :param module: The AnsibleModule instance started by the task.
+        :param existing_name: Type str.
+                              The current name of the Server object to be changed.
+        :param proposed_name: Type str.
+                              The name the Server object should be changed to.
+        :return: A list with config dictionary corresponding to the config returned by the Ansible module.
+        """
+        config = []
+
+        rename_config = {"name": existing_name, "newname": proposed_name}
+
+        if not module.check_mode:
+            config_status = self.change_name(existing_name, proposed_name)
+            if config_status.ok:
+                config.append({"method": "post", "url": config_status.url, "body": rename_config})
+            else:
+                module.fail_json(msg=config_status.content)
+        else:
+            config.append({"method": "post", "url": self.url + self.api_endpoint + "?action=rename", "body": rename_config})
 
         return config
 
@@ -741,38 +790,6 @@ class LBVServer(Netscaler):
 
         return response
 
-    def check_duplicate_ip_port_service(self, proposed):
-        """
-        The purpose of this method is to identify if the proposed lbvserver has either an "ipv46" and "servicetype" or
-        an "ipv46" and "port" value combination that already exists in the current partition and traffic domain. This
-        should be used to prevent an invalid API request since each lbvserver "ipv46" must not reuse either
-        "servicetype" or "port" values.
-        :param proposed: Type dict.
-                         The proposed lbvserver configuration.
-        :return: A dictionary with the information about colliding lbvserver. An empty dictionary is returned if all
-                 combinations are unique.
-        """
-        ip_address = proposed["ipv46"]
-        traffic_domain = proposed["td"]
-        service_type = proposed["servicetype"]
-        port = proposed["port"]
-
-        colliding_lbvserver_dict = {}
-        colliding_lbvserver = self.get_lbvserver_by_ip_td_servicetype(ip_address, traffic_domain, service_type)
-
-        if not colliding_lbvserver:
-            colliding_lbvserver = self.get_lbvserver_by_ip_td_port(ip_address, traffic_domain, port)
-
-        if colliding_lbvserver:
-            colliding_lbvserver_dict["proposed_name"] = proposed["name"]
-            colliding_lbvserver_dict["existing_name"] = colliding_lbvserver["name"]
-            colliding_lbvserver_dict["ip_address"] = ip_address
-            colliding_lbvserver_dict["traffic_domain"] = traffic_domain
-            colliding_lbvserver_dict["existing_service"] = colliding_lbvserver["servicetype"]
-            colliding_lbvserver_dict["existing_port"] = colliding_lbvserver["port"]
-
-        return colliding_lbvserver_dict
-
     def get_all(self):
         """
         The purpose of this method is to retrieve every object's configuration for the instance's API endpoint.
@@ -813,26 +830,6 @@ class LBVServer(Netscaler):
         response = self.session.get(url, headers=self.headers, verify=self.verify)
 
         return response.json().get("sslvserver_sslcertkey_binding", [])
-
-    def get_lbvserver_by_ip_td_servicetype(self, ip_address, traffic_domain, service_type):
-        """
-        This method is used to collect the config of a server with an identical "ipv46," "td," and "port" as the
-        proposed lbvserver.
-        :param ip_address: Type str.
-                           The proposed "ipaddress" value.
-        :param traffic_domain: Type str.
-                               The proposed "td" value.
-        :param service_type: Type str.
-                             The proposed "servicetype" value.
-        :return: A dictionary of the server configuration. If the server is unique, then an empty dictionary is
-                 returned.
-        """
-        url = self.url + self.api_endpoint + "?filter=ipv46:{},td:{},servicetype:{}".format(
-            ip_address, traffic_domain, service_type
-        )
-        response = self.session.get(url, headers=self.headers, verify=self.verify)
-
-        return response.json().get("lbvserver", [{}])[0]
 
     def get_lbvserver_by_ip_td_port(self, ip_address, traffic_domain, port):
         """
@@ -987,6 +984,7 @@ def main():
         backup_lbvserver=dict(required=False, type="str"),
         client_timeout=dict(required=False, type="str"),
         comment=dict(required=False, type="str"),
+        config_override=dict(choices=[True, False], type="bool", default=False),
         conn_failover=dict(choices=["DISABLED", "STATEFUL", "STATELESS"], required=False, type="str"),
         cookie_name=dict(required=False, type="str"),
         ip_address=dict(required=False, type="str"),
@@ -1043,7 +1041,7 @@ def main():
     if "port" in proposed:
         if proposed["port"] == "*":
             if proposed["servicetype"] != "ANY":
-                module.fail_json(msg="'*'' can only be used with a service_type of 'ANY'")
+                module.fail_json(msg="'*' can only be used with a service_type of 'ANY'")
             else:
                 proposed["port"] = 65535
         else:
@@ -1097,23 +1095,35 @@ def change_config(session, module, proposed, existing):
     """
     changed = False
     config = []
+    rename = []
 
     config_method, config_diff = session.get_diff(proposed, existing)
-
+    # check for duplicate lbvserver only if object is a primary vserver
+    if "ipv46" in config_diff and config_diff["ipv46"] != "0.0.0.0" and "port" in config_diff:
+        dup_lbvserver = session.get_lbvserver_by_ip_td_port(proposed["ipv46"], proposed["td"], proposed["port"])
+        if dup_lbvserver and not module.params["config_override"]:
+            dup_dict = dict(
+                proposed_name=proposed["name"], existing_name=dup_lbvserver["name"], ip_address=dup_lbvserver["ipv46"],
+                traffic_domain=dup_lbvserver["td"], service_type=dup_lbvserver["servicetype"], port=dup_lbvserver["port"]
+            )
+            module.fail_json(msg="Changing a LBVServer's Name requires setting the config_override param to True:.", conflict=dup_dict)
+        elif dup_lbvserver:
+           changed = True
+           rename = session.config_rename(module, dup_lbvserver["name"], proposed["name"])
+           new_existing = session.get_existing_attrs(proposed["name"], proposed.keys())
+           config_method, config_diff = LBVServer.get_diff(proposed, new_existing)
+    
     if config_method == "new":
-        # check for duplicate IPs only if object is a primary vserver
+        # raise error if new primary lbvserver does not include proper port and servicetype configurations
         if "ipv46" in config_diff and config_diff["ipv46"] != "0.0.0.0":
             if "port" not in config_diff or "servicetype" not in config_diff:
                 module.fail_json(msg="The port and service type must be specified for a new primary lbvserver.")
             elif config_diff["port"] == 0:
                 module.fail_json(msg="A port value of 0 is only supported with an ip_address of '0.0.0.0'")
-            else:
-                dup_lbvserver_check = session.check_duplicate_ip_port_service(proposed)
-                if dup_lbvserver_check:
-                    module.fail_json(msg="Unique names correspond to the same LBVServer:\n{}".format(dup_lbvserver_check))
+        # raise error if new backup lbvserver has set the port to a value other than 0
         elif "ipv46" in config_diff and config_diff["port"] != 0:
             module.fail_json(msg="An ip_address value of '0.0.0.0' only supports a port of 0")
-        
+
         changed = True
         config = session.config_new(module, config_diff)
 
@@ -1128,11 +1138,15 @@ def change_config(session, module, proposed, existing):
         if "port" in config_diff:
             module.fail_json(msg="Modifying the VServer's Port is not Supported")
 
-        if "ipv46" in config_diff:
-            module.fail_json(msg="Changing the IP Address is not Supported")
+        if "ipv46" in config_diff and not module.params["config_override"]:
+            dup_dict = dict(name=proposed["name"], proposed_ip=proposed["ipv46"], existing_ip=existing["ipv46"], traffic_domain=proposed["td"])
+            module.fail_json(msg="Updating a LBVServer's IP Addresses requires setting the config_override param to True.", conflict=dup_dict)
 
         changed = True
         config = session.config_update(module, config_diff)
+
+    if rename:
+        config.append(rename[0])
 
     return {"changed": changed, "config": config, "existing": existing}
 
