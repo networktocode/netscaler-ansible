@@ -102,6 +102,13 @@ options:
       - A comment about the lbvserver
     required: false
     type: str
+  config_override:
+    description:
+      - Setting to True enables changing IP Addresses and Names
+      - If an LB VServer with a different name is configured with the same IP Address,
+        Traffic Domain, and Port, then the existing VServer will be renamed.
+      - If an LB VServer already exists with the same Name, but different IP Address,
+        then the existing VServer will have its IP Address updated.
   conn_failover:
     description:
       - The lbvserver connection setting
