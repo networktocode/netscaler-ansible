@@ -129,9 +129,9 @@ options:
     description:
       - The method to load balance traffic.
     required: false
-    choices: ["ROUNDROBIN", "LEASTCONNECTION", "LEASTRESPONSETIME", "URLHASH", "DOMAINHASH", "DESTINATIONIPHASH",
-              "SOURCEIPHASH", "SRCIPDESTIPHASH", "LEASTBANDWIDTH", "LEASTPACKETS", "TOKEN", "SRCIPSRCPORTHASH",
-              "LRTM", "CALLIDHASH", "CUSTOMLOAD", "LEASTREQUEST", "AUDITLOGHASH", "STATICPROXIMITY"]
+    choices: ["roundrobin", "leastconnection", "leastresponsetime", "urlhash", "domainhash", "destinationiphash",
+              "sourceiphash", "srcipdestiphash", "leastbandwidth", "leastpackets", "token", "srcipsrcporthash",
+              "lrtm", "callidhash", "customload", "leastrequest", "auditloghash", "staticproximity"]
     type: str
   lbvserver_name:
     description:
@@ -158,16 +158,16 @@ options:
       - The persistence type used by the lbvserver.
     required: false
     type: str
-    choices: ["SOURCEIP", "COOKIEINSERT", "SSLSESSION", "RULE", "URLPASSIVE", "CUSTOMSERVERID", "DESTIP",
-              "SRCIPDESTIP", "CALLID", "RTSPSID", "DIAMETER", "FIXSESSION", "NONE"]
+    choices: ["sourceip", "cookieinsert", "sslsession", "rule", "urlpassive", "customserverid", "destip",
+              "srcipdestip", "callid", "rtspsid", "diameter", "fixsession", "none"]
   service_type:
     description:
       - The type of service the lbvserver provides.
     required: false
     type: str
-    choices: ["HTTP", "FTP", "TCP", "UDP", "SSL", "SSL_BRIDGE", "SSL_TCP", "DTLS", "NNTP", "DNS", "DHCPRA", "ANY",
-              "SIP_UDP", "SIP_TCP", "SIP_SSL", "DNS_TCP", "RTSP", "PUSH", "SSL_PUSH", "RADIUS", "RDP", "MYSQL",
-              "MSSQL", "DIAMETER", "SSL_DIAMETER", "TFTP", "ORACLE", "SMPP", "SYSLOGTCP", "SYSLOGUDP", "FIX"]
+    choices: ["http", "ftp", "tcp", "udp", "ssl", "ssl_bridge", "ssl_tcp", "dtls", "nntp", "dns", "dhcpra", "any",
+              "sip_udp", "sip_tcp", "sip_ssl", "dns_tcp", "rtsp", "push", "ssl_push", "radius", "rdp", "mysql",
+              "mssql", "diameter", "ssl_diameter", "tftp", "oracle", "smpp", "syslogtcp", "syslogudp", "fix"]
   traffic_domain:
     description:
       - The traffic domain associated with the servicegroup
@@ -343,7 +343,7 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json())
         else:
             url = self.url + self.api_endpoint + "/" + object_name
             config.append({"method": "delete", "url": url, "body": {}})
@@ -367,7 +367,7 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json())
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint, "body": new_config})
 
@@ -394,7 +394,7 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": rename_config})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json())
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "?action=rename", "body": rename_config})
 
@@ -424,7 +424,7 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "post", "url": config_status.url, "body": {"name": update_config["name"]}})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json())
             else:
                 url = self.url + self.api_endpoint + "?action={}".format(config_state)
                 config.append({"method": "post", "url": url, "body": {"name": update_config["name"]}})
@@ -435,7 +435,7 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "put", "url": self.url, "body": update_config})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json())
             else:
                 config.append({"method": "put", "url": self.url, "body": update_config})
 
@@ -732,7 +732,7 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Bind Cert Key", netscaler_response=config_status.json())
         else:
             config.append({"method": "post", "url": self.url + "sslvserver_sslcertkey_binding", "body": new_config})
 
@@ -755,7 +755,7 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Bind Service Group", netscaler_response=config_status.json())
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "_servicegroup_binding",
                            "body": new_config})
@@ -789,6 +789,38 @@ class LBVServer(Netscaler):
         response = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
 
         return response
+
+    def check_duplicate_ip_port_service(self, proposed):
+        """
+        The purpose of this method is to identify if the proposed lbvserver has either an "ipv46" and "servicetype" or
+        an "ipv46" and "port" value combination that already exists in the current partition and traffic domain. This
+        should be used to prevent an invalid API request since each lbvserver "ipv46" must not reuse either
+        "servicetype" or "port" values.
+        :param proposed: Type dict.
+                         The proposed lbvserver configuration.
+        :return: A dictionary with the information about colliding lbvserver. An empty dictionary is returned if all
+                 combinations are unique.
+        """
+        ip_address = proposed["ipv46"]
+        traffic_domain = proposed["td"]
+        service_type = proposed["servicetype"]
+        port = proposed["port"]
+
+        colliding_lbvserver_dict = {}
+        colliding_lbvserver = self.get_lbvserver_by_ip_td_servicetype(ip_address, traffic_domain, service_type)
+
+        if not colliding_lbvserver:
+            colliding_lbvserver = self.get_lbvserver_by_ip_td_port(ip_address, traffic_domain, port)
+
+        if colliding_lbvserver:
+            colliding_lbvserver_dict["proposed_name"] = proposed["name"]
+            colliding_lbvserver_dict["existing_name"] = colliding_lbvserver["name"]
+            colliding_lbvserver_dict["ip_address"] = ip_address
+            colliding_lbvserver_dict["traffic_domain"] = traffic_domain
+            colliding_lbvserver_dict["existing_service"] = colliding_lbvserver["servicetype"]
+            colliding_lbvserver_dict["existing_port"] = colliding_lbvserver["port"]
+
+        return colliding_lbvserver_dict
 
     def get_all(self):
         """
@@ -830,6 +862,26 @@ class LBVServer(Netscaler):
         response = self.session.get(url, headers=self.headers, verify=self.verify)
 
         return response.json().get("sslvserver_sslcertkey_binding", [])
+
+    def get_lbvserver_by_ip_td_servicetype(self, ip_address, traffic_domain, service_type):
+        """
+        This method is used to collect the config of a server with an identical "ipv46," "td," and "port" as the
+        proposed lbvserver.
+        :param ip_address: Type str.
+                           The proposed "ipaddress" value.
+        :param traffic_domain: Type str.
+                               The proposed "td" value.
+        :param service_type: Type str.
+                             The proposed "servicetype" value.
+        :return: A dictionary of the server configuration. If the server is unique, then an empty dictionary is
+                 returned.
+        """
+        url = self.url + self.api_endpoint + "?filter=ipv46:{},td:{},servicetype:{}".format(
+            ip_address, traffic_domain, service_type
+        )
+        response = self.session.get(url, headers=self.headers, verify=self.verify)
+
+        return response.json().get("lbvserver", [{}])[0]
 
     def get_lbvserver_by_ip_td_port(self, ip_address, traffic_domain, port):
         """
@@ -881,7 +933,7 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Remove Cert Key Binding", netscaler_response=config_status.json())
         else:
             args_list = new_config.items()
             args = "?args="
@@ -912,7 +964,7 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Remove Service Group Binding", netscaler_response=config_status.json())
         else:
             url = self.url + self.api_endpoint + "_servicegroup_binding?args=name:{},servicegroupnaname:{}".format(
                 new_config["name"], new_config["servicegroupname"])
@@ -962,12 +1014,20 @@ class LBVServer(Netscaler):
 VALID_SERVICETYPES = ["HTTP", "FTP", "TCP", "UDP", "SSL", "SSL_BRIDGE", "SSL_TCP", "DTLS", "NNTP", "DNS", "DHCPRA",
                       "ANY", "SIP_UDP", "SIP_TCP", "SIP_SSL", "DNS_TCP", "RTSP", "PUSH", "SSL_PUSH", "RADIUS", "RDP",
                       "MYSQL", "MSSQL", "DIAMETER", "SSL_DIAMETER", "TFTP", "ORACLE", "SMPP", "SYSLOGTCP", "SYSLOGUDP",
-                      "FIX"]
+                      "FIX", "http", "ftp", "tcp", "udp", "ssl", "ssl_bridge", "ssl_tcp", "dtls", "nntp", "dns", "dhcpra",
+                      "any", "sip_udp", "sip_tcp", "sip_ssl", "dns_tcp", "rtsp", "push", "ssl_push", "radius", "rdp",
+                      "mysql", "mssql", "diameter", "ssl_diameter", "tftp", "oracle", "smpp", "syslogtcp", "syslogudp",
+                      "fix"]
 VALID_LBMETHODS = ["ROUNDROBIN", "LEASTCONNECTION", "LEASTRESPONSETIME", "URLHASH", "DOMAINHASH", "DESTINATIONIPHASH",
                    "SOURCEIPHASH", "SRCIPDESTIPHASH", "LEASTBANDWIDTH", "LEASTPACKETS", "TOKEN", "SRCIPSRCPORTHASH",
-                   "LRTM", "CALLIDHASH", "CUSTOMLOAD", "LEASTREQUEST", "AUDITLOGHASH", "STATICPROXIMITY"]
+                   "LRTM", "CALLIDHASH", "CUSTOMLOAD", "LEASTREQUEST", "AUDITLOGHASH", "STATICPROXIMITY", "roundrobin",
+                   "leastconnection", "leastresponsetime", "urlhash", "domainhash", "destinationiphash", "sourceiphash",
+                   "srcipdestiphash", "leastbandwidth", "leastpackets", "token", "srcipsrcporthash", "lrtm", "callidhash",
+                   "customload", "leastrequest", "auditloghash", "staticproximity"]
 VALID_PERSISTENCE_TYPES = ["SOURCEIP", "COOKIEINSERT", "SSLSESSION", "RULE", "URLPASSIVE", "CUSTOMSERVERID", "DESTIP",
-                           "SRCIPDESTIP", "CALLID", "RTSPSID", "DIAMETER", "FIXSESSION", "NONE"]
+                           "SRCIPDESTIP", "CALLID", "RTSPSID", "DIAMETER", "FIXSESSION", "NONE", "sourceip", "cookieinsert",
+                           "sslsession", "rule", "urlpassive", "customserverid", "destip", "srcipdestip", "callid", "rtspsid",
+                           "diameter", "fixsession", "none"]
 
 
 def main():
@@ -1018,6 +1078,15 @@ def main():
     use_ssl = module.params["use_ssl"]
     username = module.params["username"]
     validate_certs = module.params["validate_certs"]
+    lb_method = module.params["lbmethod"]
+    persistence = module.params["persistence"]
+    service_type = module.params["service_type"]
+    if lb_method:
+        lb_method = lb_method.upper()
+    if persistence:
+        persistence = persistence.upper()
+    if service_type:
+        service_type = service_type.upper()
 
     args = dict(
         backupvserver=module.params["backup_lbvserver"],
@@ -1026,12 +1095,12 @@ def main():
         connfailover=module.params["conn_failover"],
         cookiename=module.params["cookie_name"],
         ipv46=module.params["ip_address"],
-        lbmethod=module.params["lbmethod"],
+        lbmethod=lb_method,
         name=module.params["lbvserver_name"],
         port=module.params["lbvserver_port"],
         state=module.params["lbvserver_state"].upper(),
-        persistencetype=module.params["persistence"],
-        servicetype=module.params["service_type"],
+        persistencetype=persistence,
+        servicetype=service_type,
         td=module.params["traffic_domain"]
     )
 
@@ -1057,12 +1126,12 @@ def main():
     session = LBVServer(host, username, password, use_ssl, validate_certs, **kwargs)
     session_login = session.login()
     if not session_login.ok:
-        module.fail_json(msg="Unable to login")
+        module.fail_json(msg="Unable to Login", netscaler_response=session_login.json())
 
     if partition:
         session_switch = session.switch_partition(partition)
         if not session_switch.ok:
-            module.fail_json(msg=session_switch.content, reason="Unable to Switch Partitions")
+            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json())
 
     existing_attrs = args.keys()
     existing = session.get_existing_attrs(proposed["name"], existing_attrs)

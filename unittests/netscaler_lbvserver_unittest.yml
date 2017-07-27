@@ -12,11 +12,11 @@
           password: "{{ password }}" 
           lbvserver_name: "lbvserver01"
           ip_address: "10.10.20.21" 
-          service_type: "HTTP"
+          service_type: "http"
           comment: "Comments Work"
-          lbmethod: "ROUNDROBIN"
+          lbmethod: "roundrobin"
           lbvserver_port: 80
-          persistence: "SRCIPDESTIP"
+          persistence: "srcipdestip"
 
       - name: CONFIG LB VSERVER AGAIN - NO CHANGE
         netscaler_lbvserver:
@@ -25,7 +25,7 @@
           password: "{{ password }}"
           lbvserver_name: "lbvserver01"
           ip_address: "10.10.20.21" 
-          service_type: "HTTP"
+          service_type: "http"
           comment: "Comments Work"
           lbmethod: "ROUNDROBIN"
           lbvserver_port: 80
