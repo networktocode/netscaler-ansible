@@ -265,7 +265,7 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json())
         else:
             url = self.url + self.api_endpoint + "/" + object_name
             config.append({"method": "delete", "url": url, "body": {}})
@@ -289,7 +289,7 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json())
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint, "body": new_config})
 
@@ -316,7 +316,7 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": rename_config})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json())
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "?action=rename", "body": rename_config})
 
@@ -346,7 +346,7 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "post", "url": config_status.url, "body": {"name": update_config["name"]}})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json())
             else:
                 url = self.url + self.api_endpoint + "?action={}".format(config_state)
                 config.append({"method": "post", "url": url, "body": {"name": update_config["name"]}})
@@ -357,7 +357,7 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "put", "url": self.url, "body": update_config})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json())
             else:
                 config.append({"method": "put", "url": self.url, "body": update_config})
 
@@ -743,12 +743,12 @@ def main():
     session = Server(host, username, password, use_ssl, validate_certs, **kwargs)
     session_login = session.login()
     if not session_login.ok:
-        module.fail_json(msg="Unable to login")
+        module.fail_json(msg="Unable to Login", netscaler_response=session_login.json())
 
     if partition:
         session_switch = session.switch_partition(partition)
         if not session_switch.ok:
-            module.fail_json(msg=session_switch.content, reason="Unable to Switch Partitions")
+            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json())
 
     existing_attrs = args.keys()
     existing = session.get_existing_attrs(proposed["name"], existing_attrs)
