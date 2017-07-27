@@ -126,6 +126,24 @@
           servicegroup_name: "servicegroup01"
           state: "absent"
 
+      - name: CONFIGMODIFY SERVICE GROUP IN TRAFFIC DOMAIN - FAIL
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "servicegroup03"
+          service_type: "HTTP"
+        ignore_errors: true
+
+      - name: MODIFY SERVICE GROUP IN TRAFFIC DOMAIN - FAIL
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "servicegroup03"
+          traffic_domain: 0
+        ignore_errors: true
+
       - name: CONFIG SERVICE GROUP WITHOUT A NAME - FAIL
         netscaler_servicegroup:
           host: "{{ inventory_hostname }}"

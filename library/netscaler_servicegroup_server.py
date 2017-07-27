@@ -824,7 +824,8 @@ class ServiceGroup(Netscaler):
                                "monitorname": update_config["monitor_name"]}})
 
         if len(update_config) > 2:
-            module.fail_json(msg="The Netscaler Nitro API does not support modifying the Service Group to Monitor Bindings")
+            module.fail_json(msg="The Netscaler Nitro API does not support modifying the Service Group to Monitor Bindings."
+                                 "In order to make an update, you will first need to Delete the Binding, then create a new Binding")
 
         return config
 
@@ -1134,18 +1135,17 @@ def change_config(session, module, proposed, all_existing):
                             port=proposed["port"])
 
     for binding in all_existing:
-        if proposed_wcard == dict(servicegroupname=binding["servicegroupname"], servername=binding["servername"],
-                                  port=binding["port"]):
-            existing = proposed_wcard
-            break
-        elif proposed_minimum == dict(servicegroupname=binding["servicegroupname"], servername=binding["servername"],
-                                      port=binding["port"]):
-            existing = proposed
+        binding_minimum = dict(servicegroupname=binding["servicegroupname"], servername=binding["servername"], port=binding["port"])
+        if proposed_wcard == binding_minimum or proposed_minimum == binding_minimum:
+            existing = binding
             break
 
     if not existing:
         changed = True
         config = session.add_server_binding(module, proposed)
+    elif proposed.get("weight") and proposed["weight"] != existing["weight"]:
+        module.fail_json(msg="The Netscaler Nitro API does not support modifying a Server Binding; "
+                             "In order to make changes, first delete the binding, and then add with the new params.")
 
     return {"all_existing": all_existing, "changed": changed, "config": config, "existing": existing}
 
@@ -1168,11 +1168,11 @@ def delete_server_binding(session, module, proposed, all_existing):
                             port=proposed["port"])
 
     for binding in all_existing:
-        if proposed_minimum == dict(servicegroupname=binding["servicegroupname"], servername=binding["servername"],
-                                    port=binding["port"]):
+        binding_minimum = dict(servicegroupname=binding["servicegroupname"], servername=binding["servername"], port=binding["port"])
+        if proposed_minimum == binding_minimum:
             changed = True
             config = session.remove_server_binding(module, proposed)
-            existing = proposed
+            existing = binding
 
     if not config:
         existing = {}

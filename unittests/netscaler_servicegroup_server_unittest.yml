@@ -122,6 +122,17 @@
           partition: "LAB"
           state: "absent"
 
+      - name: MODIFY SERVICE GROUP TO SERVER BINDING WITH WEIGHT - FAIL
+        netscaler_servicegroup_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server02"
+          servicegroup_name: "servicegroup02"
+          server_port: 80
+          weight: "30"
+        ignore_errors: true
+
       - name: CREATE SERVICE GROUP TO SERVER BINDING NO PORT - FAIL
         netscaler_servicegroup_server:
           host: "{{ inventory_hostname }}"
