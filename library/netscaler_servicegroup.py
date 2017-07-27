@@ -121,10 +121,10 @@ options:
       - must be included for new servicegroup objects.
     required: false
     type: str
-    choices: ["HTTP", "FTP", "TCP", "UDP", "SSL", "SSL_BRIDGE", "SSL_TCP", "DTLS", "NNTP", "RPCSVR", "DNS",
-              "ADNS", "SNMP", "RTSP", "DHCPRA", "ANY", "SIP_UDP", "SIP_TCP", "SIP_SSL", "DNS_TCP", "ADNS_TCP",
-              "MYSQL", "MSSQL", "ORACLE", "RADIUS", "RADIUSLISTENER", "RDP", "DIAMETER", "SSL_DIAMETER", "TFTP",
-              "SMPP", "PPTP", "GRE", "SYSLOGTCP", "SYSLOGUDP", "FIX"]
+    choices: ["http", "ftp", "tcp", "udp", "ssl", "ssl_bridge", "ssl_tcp", "dtls", "nntp", "rpcsvr", "dns",
+              "adns", "snmp", "rtsp", "dhcpra", "any", "sip_udp", "sip_tcp", "sip_ssl", "dns_tcp", "adns_tcp",
+              "mysql", "mssql", "oracle", "radius", "radiuslistener", "rdp", "diameter", "ssl_diameter", "tftp",
+              "smpp", "pptp", "gre", "syslogtcp", "syslogudp", "fix"]
   servicegroup_name:
     description:
       - The name of the servicegroup object
@@ -274,7 +274,7 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json())
         else:
             url = self.url + self.api_endpoint + "/" + object_name
             config.append({"method": "delete", "url": url, "body": {}})
@@ -298,7 +298,7 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json())
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint, "body": new_config})
 
@@ -328,7 +328,7 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "post", "url": config_status.url, "body": {"name": update_config["name"]}})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json())
             else:
                 url = self.url + self.api_endpoint + "?action={}".format(config_state)
                 config.append({"method": "post", "url": url, "body": {"name": update_config["name"]}})
@@ -339,7 +339,7 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "put", "url": self.url, "body": update_config})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json())
             else:
                 config.append({"method": "put", "url": self.url, "body": update_config})
 
@@ -630,16 +630,33 @@ class ServiceGroup(Netscaler):
         :return: The config dict corresponding to the config returned by the Ansible module.
         """
         config = []
+        config_state = new_config.pop("state", "ENABLED")[:-1].lower()
 
         if not module.check_mode:
             config_status = self.bind_server(new_config)
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Add New Monitor Binding", netscaler_response=config_status.json())
+
+            if config_state == "disable":
+                config_status = self.change_monitor_state(new_config["servicegroupname"],
+                                new_config["monitor_name"], config_state)
+                if config_status.ok:
+                    config.append({"method": "post", "url": config_status.url,
+                                   "body": {"servicegroupname": new_config["servicegroupname"],
+                                   "monitorname": new_config["monitor_name"]}})
+                else:
+                    module.fail_json(msg="Added New Monitor Binding, but Unable to Disable New Binding", netscaler_response=config_status.json())
+
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "_lbmonitor_binding",
                            "body": new_config})
+
+            if config_state == "disable":
+                config.append({"method": "post", "url": self.url + "lbmonitor?action=disable",
+                               "body": {"servicegroupname": new_config["servicegroupname"],
+                               "monitorname": new_config["monitor_name"]}})
 
         return config
 
@@ -660,7 +677,7 @@ class ServiceGroup(Netscaler):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Bind Server", netscaler_response=config_status.json())
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "_servicegroupmember_binding",
                            "body": new_config})
@@ -694,13 +711,31 @@ class ServiceGroup(Netscaler):
         response = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
 
         return response
+    
+    def change_monitor_state(self, servicegroup_name, monitor_name, state):
+        """
+        The purpose of this method is to change the state of a monitor bound to a servicegroup object from either
+        disabled to enabled, or enabled to disabled.
+        :param servicegroup_name: Type str.
+                                  The name of the servicegroup object to have its montor's state changed.
+        :param monitor_name: Type str.
+                             The name of the lbmonitor object to have its state changed.
+        :param state: Type str.
+                      The state the object should be in after execution. Valid values are "enable" or "disable"
+        :return: The response from the request to delete the object.
+        """
+        url = self.url + "lbmonitor?action={}".format(state)
+        body = {"lbmonitor": {"servicegroupname": servicegroup_name, "monitorname": monitor_name}}
+        response = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return response
 
     def change_state(self, object_name, state):
         """
         The purpose of this method is to change the state of a servicegroup object from either disabled to enabled, or
         enabled to disabled.
         :param object_name: Type str.
-                            The name of the servicegroup object to be deleted.
+                            The name of the servicegroup object to have its state changed.
         :param state: Type str.
                       The state the object should be in after execution. Valid values are "enable" or "disable"
         :return: The response from the request to delete the object.
@@ -735,7 +770,7 @@ class ServiceGroup(Netscaler):
                     config.append({"method": "post", "url": config_status.url,
                                    "body": {"servicegroupname": update_config["servicegroupname"]}})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json())
             else:
                 url = self.url + self.api_endpoint + "?action={}".format(config_state)
                 config.append({"method": "post", "url": url,
@@ -747,9 +782,47 @@ class ServiceGroup(Netscaler):
                 if config_status.ok:
                     config.append({"method": "put", "url": self.url, "body": update_config})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json())
             else:
                 config.append({"method": "put", "url": self.url, "body": update_config})
+
+        return config
+
+    def config_update_monitor_binding(self, module, update_config):
+        """
+        This method is used to handle the logic for Ansible modules when the "state" is set to "present" and the
+        proposed config modifies an existing servicegroup to monitor binding. If the object's state needs to be updated,
+        the "state" key,value is popped from the update_config in order to prevent it from being included in a config
+        update when there are updates besides state change. The change_monitor_state method is then used to modify the
+        object's state. After the object's state matches the proposed state, a check is done to see if the update_config
+        has any keys other than the "name" keys (len > 2). If there are more updates to make, the put_config method is
+        used to push those to the Netscaler.
+        :param module: The AnsibleModule instance started by the task.
+        :param update_config: Type dict.
+                              The configuration to send to the Nitro API.
+        :return: The list of config dictionaries corresponding to the config returned by the Ansible module.
+        """
+        config = []
+
+        if "state" in update_config:
+            config_state = update_config.pop("state")[:-1].lower()
+            if not module.check_mode:
+                config_status = self.change_monitor_state(update_config["servicegroupname"],
+                                update_config["monitor_name"], config_state)
+                if config_status.ok:
+                    config.append({"method": "post", "url": config_status.url,
+                                   "body": {"servicegroupname": update_config["servicegroupname"],
+                                   "monitorname": update_config["monitor_name"]}})
+                else:
+                    module.fail_json(msg="Unable to Change Monitor Binding's State", netscaler_response=config_status.json())
+            else:
+                url = self.url + "lbmonitor?action={}".format(config_state)
+                config.append({"method": "post", "url": url,
+                               "body": {"servicegroupname": update_config["servicegroupname"],
+                               "monitorname": update_config["monitor_name"]}})
+
+        if len(update_config) > 2:
+            module.fail_json(msg="The Netscaler Nitro API does not support modifying the Service Group to Monitor Bindings")
 
         return config
 
@@ -802,16 +875,55 @@ class ServiceGroup(Netscaler):
         else:
             return "none", {}
 
+    @staticmethod
+    def get_diff_monitor_binding(proposed, existing):
+        """
+        This method is used to compare the proposed lbmonitor binding config with what currently exists on the Netscaler.
+        :param proposed: Type dict.
+                         A dictionary corresponding to the proposed configuration item. The dictionary must have a
+                         "name" key.
+        :param existing: Type dict.
+                         A dictionary corresponding to the existing configuration for the object. This can be retrieved
+                         using the get_existing_attrs method.
+        :return: A tuple indicating whether the config is a new object, will update an existing object, or make no
+                 changes, and a dict that corresponds to the body of a config request using the Nitro API.
+        """
+        diff = dict(set(proposed.items()).difference(existing.items()))
+
+        if diff == proposed:
+            return "new", proposed
+        elif diff:
+            diff["servicegroupname"] = proposed["servicegroupname"]
+            diff["monitor_name"] = proposed["monitor_name"]
+            return "update", diff
+        else:
+            return "none", {}
+
+    def get_monitor_binding(self, servicegroup_name, monitor_name):
+        """
+        This method is used to get a particular servicegroup to monitor binding.
+        :param servicegroup_name: Type str.
+                                  The name of the servicegroup object.
+        :param monitor_name: Type str.
+                             The name of the monitor object.
+        :return: A dictionary of the current servers bound to the servicegroup object. If no bindings
+                 exist, then an empty dictionary is returned.
+        """
+        url = self.url + self.api_endpoint + "_lbmonitor_binding/" + servicegroup_name + \
+              "?filter=monitor_name:{}".format(monitor_name)
+        response = self.session.get(url, headers=self.headers, verify=self.verify)
+
+        return response.json().get("servicegroup_lbmonitor_binding", [{}])[0]
+
     def get_monitor_bindings(self, object_name):
         """
         This method is used to get the servicegroup's current monitor bindings.
         :param object_name: Type str.
                             The name of the servicegroup object.
         :return: A list of dictionaries of the current servers bound to the servicegroup object. If no bindings
-                 exist, then an empty dictionary is returned.
+                 exist, then an empty list is returned.
         """
-        url = self.url + self.api_endpoint + "_lbmonitor_binding/" + object_name + \
-              "?attrs=servicegroupname,monitor_name,weight"
+        url = self.url + self.api_endpoint + "_lbmonitor_binding/" + object_name
         response = self.session.get(url, headers=self.headers, verify=self.verify)
 
         return response.json().get("servicegroup_lbmonitor_binding", [])
@@ -822,7 +934,7 @@ class ServiceGroup(Netscaler):
         :param object_name: Type str.
                             The name of the servicegroup object.
         :return: A list of dictionaries of the current servers bound to the servicegroup object. If no bindings
-                 exist, then an empty dictionary is returned.
+                 exist, then an empty list is returned.
         """
         url = self.url + self.api_endpoint + "_servicegroupmember_binding/" + object_name + \
               "?attrs=servicegroupname,servername,port,weight"
@@ -847,7 +959,7 @@ class ServiceGroup(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Remove Monitor Binding", netscaler_response=config_status.json())
         else:
             url = self.url + self.api_endpoint + \
                   "_lbmonitor_binding?args=servicegroupname:{},monitor_name:{}".format(
@@ -875,7 +987,7 @@ class ServiceGroup(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Remove Server Binding", netscaler_response=config_status.json())
         else:
             url = self.url + self.api_endpoint + \
                   "_servicegroupmember_binding?args=servicegroupname:{},servername:{},port:{}".format(
@@ -922,7 +1034,11 @@ class ServiceGroup(Netscaler):
 VALID_SERVICETYPES = ["HTTP", "FTP", "TCP", "UDP", "SSL", "SSL_BRIDGE", "SSL_TCP", "DTLS", "NNTP", "RPCSVR", "DNS",
                       "ADNS", "SNMP", "RTSP", "DHCPRA", "ANY", "SIP_UDP", "SIP_TCP", "SIP_SSL", "DNS_TCP", "ADNS_TCP",
                       "MYSQL", "MSSQL", "ORACLE", "RADIUS", "RADIUSLISTENER", "RDP", "DIAMETER", "SSL_DIAMETER", "TFTP",
-                      "SMPP", "PPTP", "GRE", "SYSLOGTCP", "SYSLOGUDP", "FIX"]
+                      "SMPP", "PPTP", "GRE", "SYSLOGTCP", "SYSLOGUDP", "FIX", "http", "ftp", "tcp", "udp", "ssl",
+                      "ssl_bridge", "ssl_tcp", "dtls", "nntp", "rpcsvr", "dns", "adns", "snmp", "rtsp", "dhcpra", "any",
+                      "sip_udp", "sip_tcp", "sip_ssl", "dns_tcp", "adns_tcp", "mysql", "mssql", "oracle", "radius",
+                      "radiuslistener", "rdp", "diameter", "ssl_diameter", "tftp", "smpp", "pptp", "gre", "syslogtcp",
+                      "syslogudp", "fix"]
 
 
 def main():
@@ -968,6 +1084,9 @@ def main():
     use_ssl = module.params["use_ssl"]
     username = module.params["username"]
     validate_certs = module.params["validate_certs"]
+    service_type = module.params["service_type"]
+    if service_type:
+        service_type = service_type.upper()
 
     args = dict(
         clttimeout=module.params["client_timeout"],
@@ -975,7 +1094,7 @@ def main():
         maxclient=module.params["max_client"],
         maxreq=module.params["max_req"],
         svrtimeout=module.params["server_timeout"],
-        servicetype=module.params["service_type"],
+        servicetype=service_type,
         servicegroupname=module.params["servicegroup_name"],
         state=module.params["servicegroup_state"].upper(),
         td=module.params["traffic_domain"]
@@ -990,12 +1109,12 @@ def main():
     session = ServiceGroup(host, username, password, use_ssl, validate_certs, **kwargs)
     session_login = session.login()
     if not session_login.ok:
-        module.fail_json(msg="Unable to login")
+        module.fail_json(msg="Unable to Login", netscaler_response=session_login.json())
 
     if partition:
         session_switch = session.switch_partition(partition)
         if not session_switch.ok:
-            module.fail_json(msg=session_switch.content, reason="Unable to Switch Partitions")
+            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json())
 
     existing_attrs = args.keys()
     existing = session.get_existing_attrs(proposed["servicegroupname"], existing_attrs)
