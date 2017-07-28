@@ -790,38 +790,6 @@ class LBVServer(Netscaler):
 
         return response
 
-    def check_duplicate_ip_port_service(self, proposed):
-        """
-        The purpose of this method is to identify if the proposed lbvserver has either an "ipv46" and "servicetype" or
-        an "ipv46" and "port" value combination that already exists in the current partition and traffic domain. This
-        should be used to prevent an invalid API request since each lbvserver "ipv46" must not reuse either
-        "servicetype" or "port" values.
-        :param proposed: Type dict.
-                         The proposed lbvserver configuration.
-        :return: A dictionary with the information about colliding lbvserver. An empty dictionary is returned if all
-                 combinations are unique.
-        """
-        ip_address = proposed["ipv46"]
-        traffic_domain = proposed["td"]
-        service_type = proposed["servicetype"]
-        port = proposed["port"]
-
-        colliding_lbvserver_dict = {}
-        colliding_lbvserver = self.get_lbvserver_by_ip_td_servicetype(ip_address, traffic_domain, service_type)
-
-        if not colliding_lbvserver:
-            colliding_lbvserver = self.get_lbvserver_by_ip_td_port(ip_address, traffic_domain, port)
-
-        if colliding_lbvserver:
-            colliding_lbvserver_dict["proposed_name"] = proposed["name"]
-            colliding_lbvserver_dict["existing_name"] = colliding_lbvserver["name"]
-            colliding_lbvserver_dict["ip_address"] = ip_address
-            colliding_lbvserver_dict["traffic_domain"] = traffic_domain
-            colliding_lbvserver_dict["existing_service"] = colliding_lbvserver["servicetype"]
-            colliding_lbvserver_dict["existing_port"] = colliding_lbvserver["port"]
-
-        return colliding_lbvserver_dict
-
     def get_all(self):
         """
         The purpose of this method is to retrieve every object's configuration for the instance's API endpoint.
@@ -862,26 +830,6 @@ class LBVServer(Netscaler):
         response = self.session.get(url, headers=self.headers, verify=self.verify)
 
         return response.json().get("sslvserver_sslcertkey_binding", [])
-
-    def get_lbvserver_by_ip_td_servicetype(self, ip_address, traffic_domain, service_type):
-        """
-        This method is used to collect the config of a server with an identical "ipv46," "td," and "port" as the
-        proposed lbvserver.
-        :param ip_address: Type str.
-                           The proposed "ipaddress" value.
-        :param traffic_domain: Type str.
-                               The proposed "td" value.
-        :param service_type: Type str.
-                             The proposed "servicetype" value.
-        :return: A dictionary of the server configuration. If the server is unique, then an empty dictionary is
-                 returned.
-        """
-        url = self.url + self.api_endpoint + "?filter=ipv46:{},td:{},servicetype:{}".format(
-            ip_address, traffic_domain, service_type
-        )
-        response = self.session.get(url, headers=self.headers, verify=self.verify)
-
-        return response.json().get("lbvserver", [{}])[0]
 
     def get_lbvserver_by_ip_td_port(self, ip_address, traffic_domain, port):
         """
