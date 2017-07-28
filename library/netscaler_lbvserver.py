@@ -129,9 +129,9 @@ options:
     description:
       - The method to load balance traffic.
     required: false
-    choices: ["ROUNDROBIN", "LEASTCONNECTION", "LEASTRESPONSETIME", "URLHASH", "DOMAINHASH", "DESTINATIONIPHASH",
-              "SOURCEIPHASH", "SRCIPDESTIPHASH", "LEASTBANDWIDTH", "LEASTPACKETS", "TOKEN", "SRCIPSRCPORTHASH",
-              "LRTM", "CALLIDHASH", "CUSTOMLOAD", "LEASTREQUEST", "AUDITLOGHASH", "STATICPROXIMITY"]
+    choices: ["roundrobin", "leastconnection", "leastresponsetime", "urlhash", "domainhash", "destinationiphash",
+              "sourceiphash", "srcipdestiphash", "leastbandwidth", "leastpackets", "token", "srcipsrcporthash",
+              "lrtm", "callidhash", "customload", "leastrequest", "auditloghash", "staticproximity"]
     type: str
   lbvserver_name:
     description:
@@ -158,16 +158,16 @@ options:
       - The persistence type used by the lbvserver.
     required: false
     type: str
-    choices: ["SOURCEIP", "COOKIEINSERT", "SSLSESSION", "RULE", "URLPASSIVE", "CUSTOMSERVERID", "DESTIP",
-              "SRCIPDESTIP", "CALLID", "RTSPSID", "DIAMETER", "FIXSESSION", "NONE"]
+    choices: ["sourceip", "cookieinsert", "sslsession", "rule", "urlpassive", "customserverid", "destip",
+              "srcipdestip", "callid", "rtspsid", "diameter", "fixsession", "none"]
   service_type:
     description:
       - The type of service the lbvserver provides.
     required: false
     type: str
-    choices: ["HTTP", "FTP", "TCP", "UDP", "SSL", "SSL_BRIDGE", "SSL_TCP", "DTLS", "NNTP", "DNS", "DHCPRA", "ANY",
-              "SIP_UDP", "SIP_TCP", "SIP_SSL", "DNS_TCP", "RTSP", "PUSH", "SSL_PUSH", "RADIUS", "RDP", "MYSQL",
-              "MSSQL", "DIAMETER", "SSL_DIAMETER", "TFTP", "ORACLE", "SMPP", "SYSLOGTCP", "SYSLOGUDP", "FIX"]
+    choices: ["http", "ftp", "tcp", "udp", "ssl", "ssl_bridge", "ssl_tcp", "dtls", "nntp", "dns", "dhcpra", "any",
+              "sip_udp", "sip_tcp", "sip_ssl", "dns_tcp", "rtsp", "push", "ssl_push", "radius", "rdp", "mysql",
+              "mssql", "diameter", "ssl_diameter", "tftp", "oracle", "smpp", "syslogtcp", "syslogudp", "fix"]
   traffic_domain:
     description:
       - The traffic domain associated with the servicegroup
@@ -343,7 +343,7 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json())
         else:
             url = self.url + self.api_endpoint + "/" + object_name
             config.append({"method": "delete", "url": url, "body": {}})
@@ -367,7 +367,7 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json())
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint, "body": new_config})
 
@@ -394,7 +394,7 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": rename_config})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json())
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "?action=rename", "body": rename_config})
 
@@ -424,7 +424,7 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "post", "url": config_status.url, "body": {"name": update_config["name"]}})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json())
             else:
                 url = self.url + self.api_endpoint + "?action={}".format(config_state)
                 config.append({"method": "post", "url": url, "body": {"name": update_config["name"]}})
@@ -435,7 +435,7 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "put", "url": self.url, "body": update_config})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json())
             else:
                 config.append({"method": "put", "url": self.url, "body": update_config})
 
@@ -732,7 +732,7 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Bind Cert Key", netscaler_response=config_status.json())
         else:
             config.append({"method": "post", "url": self.url + "sslvserver_sslcertkey_binding", "body": new_config})
 
@@ -755,7 +755,7 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Bind Service Group", netscaler_response=config_status.json())
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "_servicegroup_binding",
                            "body": new_config})
@@ -881,7 +881,7 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Remove Cert Key Binding", netscaler_response=config_status.json())
         else:
             args_list = new_config.items()
             args = "?args="
@@ -912,7 +912,7 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Remove Service Group Binding", netscaler_response=config_status.json())
         else:
             url = self.url + self.api_endpoint + "_servicegroup_binding?args=name:{},servicegroupnaname:{}".format(
                 new_config["name"], new_config["servicegroupname"])
@@ -962,12 +962,20 @@ class LBVServer(Netscaler):
 VALID_SERVICETYPES = ["HTTP", "FTP", "TCP", "UDP", "SSL", "SSL_BRIDGE", "SSL_TCP", "DTLS", "NNTP", "DNS", "DHCPRA",
                       "ANY", "SIP_UDP", "SIP_TCP", "SIP_SSL", "DNS_TCP", "RTSP", "PUSH", "SSL_PUSH", "RADIUS", "RDP",
                       "MYSQL", "MSSQL", "DIAMETER", "SSL_DIAMETER", "TFTP", "ORACLE", "SMPP", "SYSLOGTCP", "SYSLOGUDP",
-                      "FIX"]
+                      "FIX", "http", "ftp", "tcp", "udp", "ssl", "ssl_bridge", "ssl_tcp", "dtls", "nntp", "dns", "dhcpra",
+                      "any", "sip_udp", "sip_tcp", "sip_ssl", "dns_tcp", "rtsp", "push", "ssl_push", "radius", "rdp",
+                      "mysql", "mssql", "diameter", "ssl_diameter", "tftp", "oracle", "smpp", "syslogtcp", "syslogudp",
+                      "fix"]
 VALID_LBMETHODS = ["ROUNDROBIN", "LEASTCONNECTION", "LEASTRESPONSETIME", "URLHASH", "DOMAINHASH", "DESTINATIONIPHASH",
                    "SOURCEIPHASH", "SRCIPDESTIPHASH", "LEASTBANDWIDTH", "LEASTPACKETS", "TOKEN", "SRCIPSRCPORTHASH",
-                   "LRTM", "CALLIDHASH", "CUSTOMLOAD", "LEASTREQUEST", "AUDITLOGHASH", "STATICPROXIMITY"]
+                   "LRTM", "CALLIDHASH", "CUSTOMLOAD", "LEASTREQUEST", "AUDITLOGHASH", "STATICPROXIMITY", "roundrobin",
+                   "leastconnection", "leastresponsetime", "urlhash", "domainhash", "destinationiphash", "sourceiphash",
+                   "srcipdestiphash", "leastbandwidth", "leastpackets", "token", "srcipsrcporthash", "lrtm", "callidhash",
+                   "customload", "leastrequest", "auditloghash", "staticproximity"]
 VALID_PERSISTENCE_TYPES = ["SOURCEIP", "COOKIEINSERT", "SSLSESSION", "RULE", "URLPASSIVE", "CUSTOMSERVERID", "DESTIP",
-                           "SRCIPDESTIP", "CALLID", "RTSPSID", "DIAMETER", "FIXSESSION", "NONE"]
+                           "SRCIPDESTIP", "CALLID", "RTSPSID", "DIAMETER", "FIXSESSION", "NONE", "sourceip", "cookieinsert",
+                           "sslsession", "rule", "urlpassive", "customserverid", "destip", "srcipdestip", "callid", "rtspsid",
+                           "diameter", "fixsession", "none"]
 
 
 def main():
@@ -1018,6 +1026,15 @@ def main():
     use_ssl = module.params["use_ssl"]
     username = module.params["username"]
     validate_certs = module.params["validate_certs"]
+    lb_method = module.params["lbmethod"]
+    persistence = module.params["persistence"]
+    service_type = module.params["service_type"]
+    if lb_method:
+        lb_method = lb_method.upper()
+    if persistence:
+        persistence = persistence.upper()
+    if service_type:
+        service_type = service_type.upper()
 
     args = dict(
         backupvserver=module.params["backup_lbvserver"],
@@ -1026,12 +1043,12 @@ def main():
         connfailover=module.params["conn_failover"],
         cookiename=module.params["cookie_name"],
         ipv46=module.params["ip_address"],
-        lbmethod=module.params["lbmethod"],
+        lbmethod=lb_method,
         name=module.params["lbvserver_name"],
         port=module.params["lbvserver_port"],
         state=module.params["lbvserver_state"].upper(),
-        persistencetype=module.params["persistence"],
-        servicetype=module.params["service_type"],
+        persistencetype=persistence,
+        servicetype=service_type,
         td=module.params["traffic_domain"]
     )
 
@@ -1057,12 +1074,12 @@ def main():
     session = LBVServer(host, username, password, use_ssl, validate_certs, **kwargs)
     session_login = session.login()
     if not session_login.ok:
-        module.fail_json(msg="Unable to login")
+        module.fail_json(msg="Unable to Login", netscaler_response=session_login.json())
 
     if partition:
         session_switch = session.switch_partition(partition)
         if not session_switch.ok:
-            module.fail_json(msg=session_switch.content, reason="Unable to Switch Partitions")
+            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json())
 
     existing_attrs = args.keys()
     existing = session.get_existing_attrs(proposed["name"], existing_attrs)
@@ -1104,9 +1121,10 @@ def change_config(session, module, proposed, existing):
         if dup_lbvserver and not module.params["config_override"]:
             dup_dict = dict(
                 proposed_name=proposed["name"], existing_name=dup_lbvserver["name"], ip_address=dup_lbvserver["ipv46"],
-                traffic_domain=dup_lbvserver["td"], service_type=dup_lbvserver["servicetype"], port=dup_lbvserver["port"]
+                traffic_domain=dup_lbvserver["td"], service_type=dup_lbvserver["servicetype"], port=dup_lbvserver["port"],
+                partition=module.params["partition"]
             )
-            module.fail_json(msg="Changing a LBVServer's Name requires setting the config_override param to True:.", conflict=dup_dict)
+            module.fail_json(msg="Changing a LB VServer's Name requires setting the config_override param to True:.", conflict=dup_dict)
         elif dup_lbvserver:
            changed = True
            rename = session.config_rename(module, dup_lbvserver["name"], proposed["name"])
@@ -1117,12 +1135,14 @@ def change_config(session, module, proposed, existing):
         # raise error if new primary lbvserver does not include proper port and servicetype configurations
         if "ipv46" in config_diff and config_diff["ipv46"] != "0.0.0.0":
             if "port" not in config_diff or "servicetype" not in config_diff:
-                module.fail_json(msg="The port and service type must be specified for a new primary lbvserver.")
+                module.fail_json(msg="The Port and Service Type must be specified when creating a new Primary LB VServer.")
             elif config_diff["port"] == 0:
-                module.fail_json(msg="A port value of 0 is only supported with an ip_address of '0.0.0.0'")
+                module.fail_json(msg="A Port value of 0 is only supported with an IP Address of '0.0.0.0'")
         # raise error if new backup lbvserver has set the port to a value other than 0
-        elif "ipv46" in config_diff and config_diff["port"] != 0:
-            module.fail_json(msg="An ip_address value of '0.0.0.0' only supports a port of 0")
+        elif "ipv46" in config_diff and config_diff.get("port") != 0:
+            module.fail_json(msg="An IP Address value of '0.0.0.0' only supports a Port of 0")
+        elif "ipv46" not in config_diff and config_diff.get("port", 0) != 0:
+            module.fail_json(msg="The IP Address must be specified when creating a new Primary LB VServer")
 
         changed = True
         config = session.config_new(module, config_diff)
@@ -1130,17 +1150,24 @@ def change_config(session, module, proposed, existing):
     elif config_method == "update":
         # raise error if servicetype, traffic domain, port, or ipv46 are different than current config
         if "servicetype" in config_diff:
-            module.fail_json(msg="Modifying the Service Type is not Supported")
+            conflict = dict(existing_service_type=existing["servicetype"], proposed_service_type=proposed["servicetype"], partition=module.params["partition"])
+            module.fail_json(msg="Modifying the Service Type is not Supported. This can be achieved by first deleting the "
+                                 "LB VServer, and then creating a LB VServer with the changes.", conflict=conflict)
 
         if "td" in config_diff:
-            module.fail_json(msg="Updating a VServer's Traffic Domain is not Supported")
+            conflict = dict(existing_traffic_domain=existing["td"], proposed_traffic_domain=proposed["td"], partition=module.params["partition"])
+            module.fail_json(msg="Updating a LB VServer's Traffic Domain is not Supported. This can be achieved by first deleting the "
+                                 "LB VServer, and then creating a LB VServer with the changes.", conflict=conflict)
 
         if "port" in config_diff:
-            module.fail_json(msg="Modifying the VServer's Port is not Supported")
+            conflict = dict(existing_port=existing["port"], proposed_port=proposed["port"], partition=module.params["partition"])
+            module.fail_json(msg="Modifying the LB VServer's Port is not Supported. This can be achieved by first deleting the "
+                                 "LB VServer, and then creating a LB VServer with the changes.", conflict=conflict)
 
         if "ipv46" in config_diff and not module.params["config_override"]:
-            dup_dict = dict(name=proposed["name"], proposed_ip=proposed["ipv46"], existing_ip=existing["ipv46"], traffic_domain=proposed["td"])
-            module.fail_json(msg="Updating a LBVServer's IP Addresses requires setting the config_override param to True.", conflict=dup_dict)
+            dup_dict = dict(name=proposed["name"], proposed_ip=proposed["ipv46"], existing_ip=existing["ipv46"], traffic_domain=proposed["td"],
+                            partition=module.params["partition"])
+            module.fail_json(msg="Updating a LB VServer's IP Addresses requires setting the config_override param to True.", conflict=dup_dict)
 
         changed = True
         config = session.config_update(module, config_diff)

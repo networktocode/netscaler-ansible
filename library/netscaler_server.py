@@ -787,7 +787,8 @@ def change_config(session, module, proposed, existing):
         td = proposed["td"]
         dup_server = session.get_server_by_ip_td(ip, td)
         if dup_server and not module.params["config_override"]:
-            dup_dict = dict(proposed_name=proposed["name"], existing_name=dup_server["name"], ip_address=ip, traffic_domain=td)
+            dup_dict = dict(proposed_name=proposed["name"], existing_name=dup_server["name"], ip_address=ip,
+                            traffic_domain=td, partition=module.params["partition"])
             module.fail_json(msg="Changing a Server's Name requires setting the config_override param to True.", conflict=dup_dict)
         elif dup_server:
             changed = True
@@ -801,10 +802,13 @@ def change_config(session, module, proposed, existing):
 
     elif config_method == "update":
         if "td" in config_diff:
-            module.fail_json(msg="Updating a Server's Traffic Domain is not Supported")
+            conflict = dict(existing_traffic_domain=existing["td"], proposed_traffic_domain=proposed["td"], partition=module.params["partition"])
+            module.fail_json(msg="Updating a Server's Traffic Domain is not Supported. This can be achieved by first deleting "
+                             "the Server, and then creating a Server with the changes.", conflict=conflict)
 
         if "ipaddress" in config_diff and not module.params["config_override"]:
-            dup_dict = dict(name=proposed["name"], proposed_ip=proposed["ipaddress"], existing_ip=existing["ipaddress"], traffic_domain=proposed["td"])
+            dup_dict = dict(name=proposed["name"], proposed_ip=proposed["ipaddress"], existing_ip=existing["ipaddress"],
+                            traffic_domain=proposed["td"], partition=module.params["partition"])
             module.fail_json(msg="Updating a Server's IP Addresses requires setting the config_override param to True.", conflict=dup_dict)
 
         changed = True

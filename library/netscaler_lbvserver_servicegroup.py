@@ -188,6 +188,21 @@ class Netscaler(object):
             self.url = "http://{lb}{port}/nitro/v1/config/".format(lb=self.host, port=self.port)
             self.stat_url = "http://{lb}{port}/nitro/v1/stat/".format(lb=self.host, port=self.port)
 
+    def change_name(self, existing_name, proposed_name):
+        """
+        The purpose of this method is to change the name of a server object.
+        :param existing_name: Type str.
+                              The name of the server object to be renamed.
+        :param proposed_name: Type str.
+                              The new name of the server object.
+        :return: The response from the request to delete the object.
+        """
+        url = self.url + self.api_endpoint + "?action=rename"
+        body = {self.api_endpoint: {"name": existing_name, "newname":proposed_name}}
+        response = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return response
+
     def change_state(self, object_name, state):
         """
         The purpose of this method is to change the state of an object from either disabled to enabled, or enabled to
@@ -221,7 +236,7 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json())
         else:
             url = self.url + self.api_endpoint + "/" + object_name
             config.append({"method": "delete", "url": url, "body": {}})
@@ -245,9 +260,36 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json())
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint, "body": new_config})
+
+        return config
+
+    def config_rename(self, module, existing_name, proposed_name):
+        """
+        This method is used to handle the logic for Ansible modules when the "state" is set to "present" and the
+        proposed IP Address matches the IP Address of another Server in the same Traffic Domain. The change_name
+        method is used to post the configuration to the Netscaler.
+        :param module: The AnsibleModule instance started by the task.
+        :param existing_name: Type str.
+                              The current name of the Server object to be changed.
+        :param proposed_name: Type str.
+                              The name the Server object should be changed to.
+        :return: A list with config dictionary corresponding to the config returned by the Ansible module.
+        """
+        config = []
+
+        rename_config = {"name": existing_name, "newname": proposed_name}
+
+        if not module.check_mode:
+            config_status = self.change_name(existing_name, proposed_name)
+            if config_status.ok:
+                config.append({"method": "post", "url": config_status.url, "body": rename_config})
+            else:
+                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json())
+        else:
+            config.append({"method": "post", "url": self.url + self.api_endpoint + "?action=rename", "body": rename_config})
 
         return config
 
@@ -275,7 +317,7 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "post", "url": config_status.url, "body": {"name": update_config["name"]}})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json())
             else:
                 url = self.url + self.api_endpoint + "?action={}".format(config_state)
                 config.append({"method": "post", "url": url, "body": {"name": update_config["name"]}})
@@ -286,7 +328,7 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "put", "url": self.url, "body": update_config})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json())
             else:
                 config.append({"method": "put", "url": self.url, "body": update_config})
 
@@ -583,7 +625,7 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Bind Cert Key", netscaler_response=config_status.json())
         else:
             config.append({"method": "post", "url": self.url + "sslvserver_sslcertkey_binding", "body": new_config})
 
@@ -606,7 +648,7 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Bind Service Group", netscaler_response=config_status.json())
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "_servicegroup_binding",
                            "body": new_config})
@@ -784,7 +826,7 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Remove Cert Key Binding", netscaler_response=config_status.json())
         else:
             args_list = new_config.items()
             args = "?args="
@@ -815,7 +857,7 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Remove Service Group Binding", netscaler_response=config_status.json())
         else:
             url = self.url + self.api_endpoint + "_servicegroup_binding?args=name:{},servicegroupnaname:{}".format(
                 new_config["name"], new_config["servicegroupname"])
@@ -910,12 +952,12 @@ def main():
     session = LBVServer(host, username, password, use_ssl, validate_certs, **kwargs)
     session_login = session.login()
     if not session_login.ok:
-        module.fail_json(msg="Unable to login")
+        module.fail_json(msg="Unable to Login", netscaler_response=session_login.json())
 
     if partition:
         session_switch = session.switch_partition(partition)
         if not session_switch.ok:
-            module.fail_json(msg=session_switch.content, reason="Unable to Switch Partitions")
+            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json())
 
     all_existing = session.get_servicegroup_bindings(proposed["name"])
 

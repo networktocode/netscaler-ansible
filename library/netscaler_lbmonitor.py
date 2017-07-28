@@ -136,18 +136,18 @@ options:
       - The type of service to monitor
     required: false
     type: str
-    choices: ["PING", "TCP", "HTTP", "TCP-ECV", "HTTP-ECV", "UDP-ECV", "DNS", "FTP", "LDNS-PING", "LDNS-TCP",
-              "LDNS-DNS", "RADIUS", "USER", "HTTP-INLINE", "SIP-UDP", "SIP-TCP", "LOAD", "FTP-EXTENDED", "SMTP",
-              "SNMP", "NNTP", "MYSQL", "MYSQL-ECV", "MSSQL-ECV", "ORACLE-ECV", "LDAP", "POP3", "CITRIX-XML-SERVICE",
-              "CITRIX-WEB-INTERFACE", "DNS-TCP", "RTSP", "ARP", "CITRIX-AG", "CITRIX-AAC-LOGINPAGE", "CITRIX-AAC-LAS",
-              "CITRIX-XD-DDC", "ND6", "CITRIX-WI-EXTENDED", "DIAMETER", "RADIUS_ACCOUNTING", "STOREFRONT", "APPC",
-              "SMPP", "CITRIX-XNC-ECV", "CITRIX-XDM"]
+    choices: ["ping", "tcp", "http", "tcp-ecv", "http-ecv", "udp-ecv", "dns", "ftp", "ldns-ping", "ldns-tcp",
+              "ldns-dns", "radius", "user", "http-inline", "sip-udp", "sip-tcp", "load", "ftp-extended", "smtp",
+              "snmp", "nntp", "mysql", "mysql-ecv", "mssql-ecv", "oracle-ecv", "ldap", "pop3", "citrix-xml-service",
+              "citrix-web-interface", "dns-tcp", "rtsp", "arp", "citrix-ag", "citrix-aac-loginpage", "citrix-aac-las",
+              "citrix-xd-ddc", "nd6", "citrix-wi-extended", "diameter", "radius_accounting", "storefront", "appc",
+              "smpp", "citrix-xnc-ecv", "citrix-xdm"]
   monitor_use_ssl:
     description:
       - Specifies to use SSL for the monitor
     required: false
     type: str
-    choices: ["YES", "NO"]
+    choices: ["yes", "no"]
   monitor_username:
     description:
       - The username used to authenticate with the monitored service.
@@ -176,8 +176,8 @@ EXAMPLES = '''
     username: "{{ username }}"
     password: "{{ password }}"
     monitor_name: "monitor_app01"
-    monitor_type: "HTTP"
-    monitor_use_ssl: "YES"
+    monitor_type: "http"
+    monitor_use_ssl: "yes"
     monitor_username: "user"
     monitor_password: "password"
     http_request: "HEAD /monitorcheck.html"
@@ -272,6 +272,21 @@ class Netscaler(object):
             self.url = "http://{lb}{port}/nitro/v1/config/".format(lb=self.host, port=self.port)
             self.stat_url = "http://{lb}{port}/nitro/v1/stat/".format(lb=self.host, port=self.port)
 
+    def change_name(self, existing_name, proposed_name):
+        """
+        The purpose of this method is to change the name of a server object.
+        :param existing_name: Type str.
+                              The name of the server object to be renamed.
+        :param proposed_name: Type str.
+                              The new name of the server object.
+        :return: The response from the request to delete the object.
+        """
+        url = self.url + self.api_endpoint + "?action=rename"
+        body = {self.api_endpoint: {"name": existing_name, "newname":proposed_name}}
+        response = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return response
+
     def change_state(self, object_name, state):
         """
         The purpose of this method is to change the state of an object from either disabled to enabled, or enabled to
@@ -305,7 +320,7 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json())
         else:
             url = self.url + self.api_endpoint + "/" + object_name
             config.append({"method": "delete", "url": url, "body": {}})
@@ -329,9 +344,36 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json())
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint, "body": new_config})
+
+        return config
+
+    def config_rename(self, module, existing_name, proposed_name):
+        """
+        This method is used to handle the logic for Ansible modules when the "state" is set to "present" and the
+        proposed IP Address matches the IP Address of another Server in the same Traffic Domain. The change_name
+        method is used to post the configuration to the Netscaler.
+        :param module: The AnsibleModule instance started by the task.
+        :param existing_name: Type str.
+                              The current name of the Server object to be changed.
+        :param proposed_name: Type str.
+                              The name the Server object should be changed to.
+        :return: A list with config dictionary corresponding to the config returned by the Ansible module.
+        """
+        config = []
+
+        rename_config = {"name": existing_name, "newname": proposed_name}
+
+        if not module.check_mode:
+            config_status = self.change_name(existing_name, proposed_name)
+            if config_status.ok:
+                config.append({"method": "post", "url": config_status.url, "body": rename_config})
+            else:
+                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json())
+        else:
+            config.append({"method": "post", "url": self.url + self.api_endpoint + "?action=rename", "body": rename_config})
 
         return config
 
@@ -359,7 +401,7 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "post", "url": config_status.url, "body": {"name": update_config["name"]}})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json())
             else:
                 url = self.url + self.api_endpoint + "?action={}".format(config_state)
                 config.append({"method": "post", "url": url, "body": {"name": update_config["name"]}})
@@ -370,7 +412,7 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "put", "url": self.url, "body": update_config})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json())
             else:
                 config.append({"method": "put", "url": self.url, "body": update_config})
 
@@ -698,7 +740,7 @@ class LBMonitor(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json())
         else:
             url = self.url + self.api_endpoint + "?args=monitorname:{},type:{}".format(object_name, monitor_type)
             config.append({"method": "delete", "url": url, "body": {}})
@@ -721,7 +763,7 @@ class LBMonitor(Netscaler):
             if config_status.ok:
                 config.append({"method": "put", "url": self.url, "body": update_config})
             else:
-                module.fail_json(msg=config_status.content)
+                module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json())
         else:
             config.append({"method": "put", "url": self.url, "body": update_config})
 
@@ -867,7 +909,12 @@ VALID_TYPES = ["PING", "TCP", "HTTP", "TCP-ECV", "HTTP-ECV", "UDP-ECV", "DNS", "
                "SNMP", "NNTP", "MYSQL", "MYSQL-ECV", "MSSQL-ECV", "ORACLE-ECV", "LDAP", "POP3", "CITRIX-XML-SERVICE",
                "CITRIX-WEB-INTERFACE", "DNS-TCP", "RTSP", "ARP", "CITRIX-AG", "CITRIX-AAC-LOGINPAGE", "CITRIX-AAC-LAS",
                "CITRIX-XD-DDC", "ND6", "CITRIX-WI-EXTENDED", "DIAMETER", "RADIUS_ACCOUNTING", "STOREFRONT", "APPC",
-               "SMPP", "CITRIX-XNC-ECV", "CITRIX-XDM"]
+               "SMPP", "CITRIX-XNC-ECV", "CITRIX-XDM", "ping", "tcp", "http", "tcp-ecv", "http-ecv", "udp-ecv", "dns",
+               "ftp", "ldns-ping", "ldns-tcp", "ldns-dns", "radius", "user", "http-inline", "sip-udp", "sip-tcp", "load",
+               "ftp-extended", "smtp", "snmp", "nntp", "mysql", "mysql-ecv", "mssql-ecv", "oracle-ecv", "ldap", "pop3",
+               "citrix-xml-service", "citrix-web-interface", "dns-tcp", "rtsp", "arp", "citrix-ag", "citrix-aac-loginpage",
+               "citrix-aac-las", "citrix-xd-ddc", "nd6", "citrix-wi-extended", "diameter", "radius_accounting", "storefront",
+               "appc", "smpp", "citrix-xnc-ecv", "citrix-xdm"]
 
 
 def main():
@@ -890,7 +937,7 @@ def main():
         monitor_secondary_password=dict(required=False, type="str", no_log=True),
         monitor_state=dict(choices=["disabled", "enabled"], required=False, type="str", default="enabled"),
         monitor_type=dict(choices=VALID_TYPES, required=False, type="str"),
-        monitor_use_ssl=dict(choices=["YES", "NO"], required=False, type="str"),
+        monitor_use_ssl=dict(choices=["YES", "NO", "yes", "no"], required=False, type="str"),
         monitor_username=dict(required=False, type="str"),
         response_code=dict(required=False, type="list"),
         response_code_action=dict(choices=["add", "remove"], required=False, type="str", default="add")
@@ -917,6 +964,12 @@ def main():
     use_ssl = module.params["use_ssl"]
     username = module.params["username"]
     validate_certs = module.params["validate_certs"]
+    monitor_type = module.params["monitor_type"]
+    if monitor_type:
+        monitor_type = monitor_type.upper()
+    monitor_use_ssl = module.params["monitor_use_ssl"]
+    if monitor_use_ssl:
+        monitor_use_ssl = monitor_use_ssl.upper()
     response_code_action = module.params["response_code_action"]
     response_code = module.params["response_code"]
     if response_code:
@@ -931,9 +984,9 @@ def main():
         password=module.params["monitor_password"],
         respcode=response_code,
         secondarypassword=module.params["monitor_secondary_password"],
-        secure=module.params["monitor_use_ssl"],
+        secure=monitor_use_ssl,
         state=module.params["monitor_state"].upper(),
-        type=module.params["monitor_type"],
+        type=monitor_type,
         username=module.params["monitor_username"]
     )
 
@@ -947,12 +1000,12 @@ def main():
     session = LBMonitor(host, username, password, use_ssl, validate_certs, **kwargs)
     session_login = session.login()
     if not session_login.ok:
-        module.fail_json(msg="Unable to login")
+        module.fail_json(msg="Unable to Login", netscaler_response=session_login.json())
 
     if partition:
         session_switch = session.switch_partition(partition)
         if not session_switch.ok:
-            module.fail_json(msg=session_switch.content, reason="Unable to Switch Partitions")
+            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json())
 
     existing_attrs = args.keys()
     existing = session.get_existing_attrs(proposed["monitorname"], existing_attrs)
@@ -994,7 +1047,9 @@ def change_config(session, module, proposed, existing, respcode_action):
         changed = True
         config = session.config_update(module, config_diff)
     elif config_method == "mismatch":
-        module.fail_json(msg="Modifying the Monitor Type is not Supported: {}".format(config_diff))
+        conflict = dict(existing_monitor_type=existing["type"], proposed__monitor_type=proposed["type"], partition=module.params["partition"])
+        module.fail_json(msg="Modifying the Monitor Type is not Supported. This can be achieved by first deleting "
+                             "the LB Monitor, and then creating a LB Monitor with the changes.", conflict=conflict)
 
     return {"changed": changed, "config": config, "existing": existing}
 

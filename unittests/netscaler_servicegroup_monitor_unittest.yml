@@ -139,6 +139,16 @@
           partition: "LAB"
           state: "absent"
 
+      - name: MODIFY SERVICE GROUP TO MONITOR BINDING - FAIL
+        netscaler_servicegroup_monitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          monitor_name: "monitor02"
+          servicegroup_name: "servicegroup02"
+          weight: "30"
+        ignore_errors: true
+
       - name: CREATE SERVICE GROUP TO MONITOR BINDING NO MONITOR NAME - FAIL
         netscaler_servicegroup_monitor:
           host: "{{ inventory_hostname }}"

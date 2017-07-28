@@ -824,7 +824,8 @@ class ServiceGroup(Netscaler):
                                "monitorname": update_config["monitor_name"]}})
 
         if len(update_config) > 2:
-            module.fail_json(msg="The Netscaler Nitro API does not support modifying the Service Group to Monitor Bindings")
+            module.fail_json(msg="The Netscaler Nitro API does not support modifying the Service Group to Monitor Bindings."
+                                 "In order to make an update, you will first need to Delete the Binding, then create a new Binding")
 
         return config
 

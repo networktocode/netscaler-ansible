@@ -864,7 +864,8 @@ class ServiceGroup(Netscaler):
                                "monitorname": update_config["monitor_name"]}})
 
         if len(update_config) > 2:
-            module.fail_json(msg="The Netscaler Nitro API does not support modifying the Service Group to Monitor Bindings")
+            module.fail_json(msg="The Netscaler Nitro API does not support modifying the Service Group to Monitor Bindings."
+                                 "In order to make an update, you will first need to Delete the Binding, then create a new Binding")
 
         return config
 
@@ -1196,10 +1197,14 @@ def change_config(session, module, proposed, existing):
     elif config_method == "update":
         # raise error if servicetype or traffic domain are different than current config
         if "servicetype" in config_diff:
-            module.fail_json(msg="Modifying the Service Type is not Supported")
+            conflict = dict(existing_service_type=existing["servicetype"], proposed_service_type=proposed["servicetype"], partition=module.params["partition"])
+            module.fail_json(msg="Modifying the Service Type is not Supported. This can be achieved by first deleting "
+                                 "the Service Group, and then creating a Service Group with the changes.", conflict=conflict)
 
         if "td" in config_diff:
-            module.fail_json(msg="Updating a Server's Traffic Domain is not Supported")
+            conflict = dict(existing_traffic_domain=existing["td"], proposed_traffic_domain=proposed["td"], partition=module.params["partition"])
+            module.fail_json(msg="Updating a Service Group's Traffic Domain is not Supported This can be achieved by first deleting "
+                                 "the Service Group, and then creating a Service Group with the changes.", conflict=conflict)
 
         changed = True
         config = session.config_update(module, config_diff)
