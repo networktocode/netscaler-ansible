@@ -1144,8 +1144,9 @@ def change_config(session, module, proposed, all_existing):
         changed = True
         config = session.add_server_binding(module, proposed)
     elif proposed.get("weight") and proposed["weight"] != existing["weight"]:
-        module.fail_json(msg="The Netscaler Nitro API does not support modifying a Server Binding; "
-                             "In order to make changes, first delete the binding, and then add with the new params.")
+        conflict = dict(existing_weight=existing["weight"], proposed_weight=proposed["weight"], partition=module.params["partition"])
+        module.fail_json(msg="The Netscaler Nitro API does not support modifying a Server Binding; In order"
+                             "to make changes, first delete the binding, and then add with the new params.", conflict=conflict)
 
     return {"all_existing": all_existing, "changed": changed, "config": config, "existing": existing}
 

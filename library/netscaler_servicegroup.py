@@ -1197,12 +1197,14 @@ def change_config(session, module, proposed, existing):
     elif config_method == "update":
         # raise error if servicetype or traffic domain are different than current config
         if "servicetype" in config_diff:
-            module.fail_json(msg="Modifying the Service Type is not Supported. This can be achieved by "
-                                 "first deleting the servicegroup, and then creating a servicegroup with the changes.")
+            conflict = dict(existing_service_type=existing["servicetype"], proposed_service_type=proposed["servicetype"], partition=module.params["partition"])
+            module.fail_json(msg="Modifying the Service Type is not Supported. This can be achieved by first deleting "
+                                 "the Service Group, and then creating a Service Group with the changes.", conflict=conflict)
 
         if "td" in config_diff:
-            module.fail_json(msg="Updating a Server's Traffic Domain is not Supported This can be achieved by "
-                                 "first deleting the servicegroup, and then creating a servicegroup with the changes.")
+            conflict = dict(existing_traffic_domain=existing["td"], proposed_traffic_domain=proposed["td"], partition=module.params["partition"])
+            module.fail_json(msg="Updating a Service Group's Traffic Domain is not Supported This can be achieved by first deleting "
+                                 "the Service Group, and then creating a Service Group with the changes.", conflict=conflict)
 
         changed = True
         config = session.config_update(module, config_diff)

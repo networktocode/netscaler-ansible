@@ -1173,9 +1173,10 @@ def change_config(session, module, proposed, existing):
         if dup_lbvserver and not module.params["config_override"]:
             dup_dict = dict(
                 proposed_name=proposed["name"], existing_name=dup_lbvserver["name"], ip_address=dup_lbvserver["ipv46"],
-                traffic_domain=dup_lbvserver["td"], service_type=dup_lbvserver["servicetype"], port=dup_lbvserver["port"]
+                traffic_domain=dup_lbvserver["td"], service_type=dup_lbvserver["servicetype"], port=dup_lbvserver["port"],
+                partition=module.params["partition"]
             )
-            module.fail_json(msg="Changing a LBVServer's Name requires setting the config_override param to True:.", conflict=dup_dict)
+            module.fail_json(msg="Changing a LB VServer's Name requires setting the config_override param to True:.", conflict=dup_dict)
         elif dup_lbvserver:
            changed = True
            rename = session.config_rename(module, dup_lbvserver["name"], proposed["name"])
@@ -1186,12 +1187,14 @@ def change_config(session, module, proposed, existing):
         # raise error if new primary lbvserver does not include proper port and servicetype configurations
         if "ipv46" in config_diff and config_diff["ipv46"] != "0.0.0.0":
             if "port" not in config_diff or "servicetype" not in config_diff:
-                module.fail_json(msg="The port and service type must be specified for a new primary lbvserver.")
+                module.fail_json(msg="The Port and Service Type must be specified when creating a new Primary LB VServer.")
             elif config_diff["port"] == 0:
-                module.fail_json(msg="A port value of 0 is only supported with an ip_address of '0.0.0.0'")
+                module.fail_json(msg="A Port value of 0 is only supported with an IP Address of '0.0.0.0'")
         # raise error if new backup lbvserver has set the port to a value other than 0
-        elif "ipv46" in config_diff and config_diff["port"] != 0:
-            module.fail_json(msg="An ip_address value of '0.0.0.0' only supports a port of 0")
+        elif "ipv46" in config_diff and config_diff.get("port") != 0:
+            module.fail_json(msg="An IP Address value of '0.0.0.0' only supports a Port of 0")
+        elif "ipv46" not in config_diff and config_diff.get("port", 0) != 0:
+            module.fail_json(msg="The IP Address must be specified when creating a new Primary LB VServer")
 
         changed = True
         config = session.config_new(module, config_diff)
@@ -1199,17 +1202,24 @@ def change_config(session, module, proposed, existing):
     elif config_method == "update":
         # raise error if servicetype, traffic domain, port, or ipv46 are different than current config
         if "servicetype" in config_diff:
-            module.fail_json(msg="Modifying the Service Type is not Supported")
+            conflict = dict(existing_service_type=existing["servicetype"], proposed_service_type=proposed["servicetype"], partition=module.params["partition"])
+            module.fail_json(msg="Modifying the Service Type is not Supported. This can be achieved by first deleting the "
+                                 "LB VServer, and then creating a LB VServer with the changes.", conflict=conflict)
 
         if "td" in config_diff:
-            module.fail_json(msg="Updating a VServer's Traffic Domain is not Supported")
+            conflict = dict(existing_traffic_domain=existing["td"], proposed_traffic_domain=proposed["td"], partition=module.params["partition"])
+            module.fail_json(msg="Updating a LB VServer's Traffic Domain is not Supported. This can be achieved by first deleting the "
+                                 "LB VServer, and then creating a LB VServer with the changes.", conflict=conflict)
 
         if "port" in config_diff:
-            module.fail_json(msg="Modifying the VServer's Port is not Supported")
+            conflict = dict(existing_port=existing["port"], proposed_port=proposed["port"], partition=module.params["partition"])
+            module.fail_json(msg="Modifying the LB VServer's Port is not Supported. This can be achieved by first deleting the "
+                                 "LB VServer, and then creating a LB VServer with the changes.", conflict=conflict)
 
         if "ipv46" in config_diff and not module.params["config_override"]:
-            dup_dict = dict(name=proposed["name"], proposed_ip=proposed["ipv46"], existing_ip=existing["ipv46"], traffic_domain=proposed["td"])
-            module.fail_json(msg="Updating a LBVServer's IP Addresses requires setting the config_override param to True.", conflict=dup_dict)
+            dup_dict = dict(name=proposed["name"], proposed_ip=proposed["ipv46"], existing_ip=existing["ipv46"], traffic_domain=proposed["td"],
+                            partition=module.params["partition"])
+            module.fail_json(msg="Updating a LB VServer's IP Addresses requires setting the config_override param to True.", conflict=dup_dict)
 
         changed = True
         config = session.config_update(module, config_diff)

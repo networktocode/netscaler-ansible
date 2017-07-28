@@ -11,7 +11,7 @@
           username: "{{ username }}"
           password: "{{ password }}" 
           monitor_name: "monitor01" 
-          monitor_type: "TCP"
+          monitor_type: "tcp"
           monitor_dest_ip: "10.10.10.10"
           monitor_dest_port: "22"
 
@@ -64,8 +64,8 @@
           password: "{{ password }}" 
           monitor_name: "monitor02"
           http_request: "HEAD /healthceck.html"
-          monitor_type: "HTTP"
-          monitor_use_ssl: "YES"
+          monitor_type: "http"
+          monitor_use_ssl: "yes"
           response_code: "200-202"
 
       - name: CREATE HTTP MONITOR AGAIN - NO CHANGE
@@ -196,6 +196,15 @@
           monitor_name: "monitor01"
           monitor_type: "PING"
           partition: "LAB"
+
+      - name: MODIFY MONITOR TYPE - FAIL
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor02"
+          monitor_type: "TCP"
+        ignore_errors: true
 
       - name: DELETE MONITOR - CHANGE
         netscaler_lbmonitor:
