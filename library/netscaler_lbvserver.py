@@ -109,12 +109,14 @@ options:
         Traffic Domain, and Port, then the existing VServer will be renamed.
       - If an LB VServer already exists with the same Name, but different IP Address,
         then the existing VServer will have its IP Address updated.
+    required: false
+    type: bool
   conn_failover:
     description:
       - The lbvserver connection setting
     required: false
     type: str
-    choices: ["DISABLED", "STATEFUL", "STATELESS"]
+    choices: ["disabled", "stateful", "stateless"]
   cookie_name:
     description:
       - The name of the cookie to use.
@@ -184,9 +186,9 @@ EXAMPLES = '''
     password: "{{ password }}"
     lbvserver_name: "lbvsvr_app01"
     ip_address: "10.10.10.21"
-    service_type: "ANY"
+    service_type: "any"
     lbvserver_port: "*"
-    lbmethod: "ROUNDROBIN"
+    lbmethod: "roundrobin"
 - name: Config Backup Lbvserver Object
   netscaler_lbvserver:
     host: : "{{ inventory_hostname }}"
@@ -196,7 +198,7 @@ EXAMPLES = '''
     ip_address: "0.0.0.0"
     service_type: "SSL"
     lbvserver_port: "0"
-    persistence: "COOKIEINSERT"
+    persistence: "cookieinsert"
     cookie_name: "choc_chip"
     partition: "Lab"
     port: 8080
@@ -210,7 +212,7 @@ EXAMPLES = '''
     backup_lbvserver: "lbvsvr_app02_backup"
     ip_address: "10.10.10.22"
     lbvserver_port: "443"
-    persistence: "COOKIEINSERT"
+    persistence: "cookieinsert"
     cookie_name: "choc_chip"
     partition: "Lab"
     use_ssl: False
@@ -976,33 +978,33 @@ VALID_PERSISTENCE_TYPES = ["SOURCEIP", "COOKIEINSERT", "SSLSESSION", "RULE", "UR
                            "SRCIPDESTIP", "CALLID", "RTSPSID", "DIAMETER", "FIXSESSION", "NONE", "sourceip", "cookieinsert",
                            "sslsession", "rule", "urlpassive", "customserverid", "destip", "srcipdestip", "callid", "rtspsid",
                            "diameter", "fixsession", "none"]
-
+VALID_CONN_FAILOVER = ["DISABLED", "STATEFUL", "STATELESS", "disabled", "stateful", "stateless"]
 
 def main():
     argument_spec = dict(
-        host=dict(required=True, type="str"),
+        host=dict(required=False, type="str"),
         port=dict(required=False, type="int"),
         username=dict(fallback=(env_fallback, ["ANSIBLE_NET_USERNAME"])),
         password=dict(fallback=(env_fallback, ["ANSIBLE_NET_PASSWORD"]), no_log=True),
-        use_ssl=dict(default=True, type="bool"),
-        validate_certs=dict(default=False, type="bool"),
+        use_ssl=dict(required=False, type="bool"),
+        validate_certs=dict(required=False, type="bool"),
         provider=dict(required=False, type="dict"),
-        state=dict(choices=["absent", "present"], default="present", type="str"),
+        state=dict(choices=["absent", "present"], type="str"),
         partition=dict(required=False, type="str"),
         backup_lbvserver=dict(required=False, type="str"),
         client_timeout=dict(required=False, type="str"),
         comment=dict(required=False, type="str"),
-        config_override=dict(choices=[True, False], type="bool", default=False),
-        conn_failover=dict(choices=["DISABLED", "STATEFUL", "STATELESS"], required=False, type="str"),
+        config_override=dict(choices=[True, False], type="bool"),
+        conn_failover=dict(choices=VALID_CONN_FAILOVER, required=False, type="str"),
         cookie_name=dict(required=False, type="str"),
         ip_address=dict(required=False, type="str"),
         lbmethod=dict(choices=VALID_LBMETHODS, required=False, type="str"),
-        lbvserver_name=dict(required=True, type="str"),
+        lbvserver_name=dict(required=False, type="str"),
         lbvserver_port=dict(required=False, type="str"),
-        lbvserver_state=dict(choices=["disabled", "enabled"], required=False, type="str", default="enabled"),
+        lbvserver_state=dict(choices=["disabled", "enabled"], required=False, type="str"),
         persistence=dict(choices=VALID_PERSISTENCE_TYPES, required=False, type="str"),
         service_type=dict(choices=VALID_SERVICETYPES, required=False, type="str"),
-        traffic_domain=dict(required=False, type="str", default="0"),
+        traffic_domain=dict(required=False, type="str"),
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -1017,40 +1019,70 @@ def main():
     for param, pvalue in provider.items():
         if module.params.get(param) is None:
             module.params[param] = pvalue
-            
+
+    # module specific args that can be represented as both str or int are normalized to Netscaler's representation for diff comparison in case provider is used 
     host = module.params["host"]
     partition = module.params["partition"]
     password = module.params["password"]
     port = module.params["port"]
     state = module.params["state"]
+    if not state:
+        state = "present"
     use_ssl = module.params["use_ssl"]
+    if use_ssl is None:
+        use_ssl = True
     username = module.params["username"]
     validate_certs = module.params["validate_certs"]
+    if validate_certs is None:
+        validate_certs = False
+    client_timeout = module.params["client_timeout"]
+    if client_timeout:
+        client_timeout = str(client_timeout)
+    conn_failover = module.params["conn_failover"]
+    if conn_failover:
+        conn_failover = conn_failover.upper()
     lb_method = module.params["lbmethod"]
-    persistence = module.params["persistence"]
-    service_type = module.params["service_type"]
     if lb_method:
         lb_method = lb_method.upper()
+    lbvserver_port = module.params["lbvserver_port"]
+    if lbvserver_port:
+        lbvserver_port = str(lbvserver_port)
+    lbvserver_state = module.params["lbvserver_state"]
+    if lbvserver_state:
+        lbvserver_state = lbvserver_state.upper()
+    persistence = module.params["persistence"]
     if persistence:
         persistence = persistence.upper()
+    service_type = module.params["service_type"]
     if service_type:
         service_type = service_type.upper()
+    traffic_domain = module.params["traffic_domain"]
+    if traffic_domain:
+        traffic_domain = str(traffic_domain)
+    else:
+        traffic_domain = "0"
 
     args = dict(
         backupvserver=module.params["backup_lbvserver"],
-        clttimeout=module.params["client_timeout"],
+        clttimeout=client_timeout,
         comment=module.params["comment"],
-        connfailover=module.params["conn_failover"],
+        connfailover=conn_failover,
         cookiename=module.params["cookie_name"],
         ipv46=module.params["ip_address"],
         lbmethod=lb_method,
         name=module.params["lbvserver_name"],
-        port=module.params["lbvserver_port"],
-        state=module.params["lbvserver_state"].upper(),
+        port=lbvserver_port,
+        state=lbvserver_state,
         persistencetype=persistence,
         servicetype=service_type,
-        td=module.params["traffic_domain"]
+        td=traffic_domain
     )
+
+    # check for required values, this allows all values to be passed in provider
+    argument_check = dict(host=host, lbvserver_name=args["name"])
+    for key, val in argument_check.items():
+        if not val:
+            module.fail_json(msg="The {} parameter is required".format(key))
 
     # "if isinstance(v, bool) or v" should be used if a bool variable is added to args
     proposed = dict((k, v) for k, v in args.items() if v)

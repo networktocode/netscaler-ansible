@@ -1036,18 +1036,18 @@ class ServiceGroup(Netscaler):
 
 def main():
     argument_spec = dict(
-        host=dict(required=True, type="str"),
+        host=dict(required=False, type="str"),
         port=dict(required=False, type="int"),
         username=dict(fallback=(env_fallback, ["ANSIBLE_NET_USERNAME"])),
         password=dict(fallback=(env_fallback, ["ANSIBLE_NET_PASSWORD"]), no_log=True),
-        use_ssl=dict(default=True, type="bool"),
-        validate_certs=dict(default=False, type="bool"),
+        use_ssl=dict(required=False, type="bool"),
+        validate_certs=dict(required=False, type="bool"),
         provider=dict(required=False, type="dict"),
-        state=dict(choices=["absent", "present"], default="present", type="str"),
+        state=dict(required=False, choices=["absent", "present"], type="str"),
         partition=dict(required=False, type="str"),
-        monitor_name=dict(required=True, type="str"),
-        monitor_state=dict(choices=["disabled", "enabled"], required=False, type="str"),
-        servicegroup_name=dict(required=True, type="str"),
+        monitor_name=dict(required=False, type="str"),
+        monitor_state=dict(required=False, choices=["disabled", "enabled"], type="str"),
+        servicegroup_name=dict(required=False, type="str"),
         weight=dict(required=False, type="str")
     )
 
@@ -1063,25 +1063,41 @@ def main():
     for param, pvalue in provider.items():
         if module.params.get(param) is None:
             module.params[param] = pvalue
-            
+
+    # module specific args that can be represented as both str or int are normalized to Netscaler's representation for diff comparison in case provider is used  
     host = module.params["host"]
     partition = module.params["partition"]
     password = module.params["password"]
     port = module.params["port"]
     state = module.params["state"]
+    if not state:
+        state = "present"
     use_ssl = module.params["use_ssl"]
+    if use_ssl is None:
+        use_ssl = True
     username = module.params["username"]
     validate_certs = module.params["validate_certs"]
+    if validate_certs is None:
+        validate_certs = False
     monitor_state = module.params["monitor_state"]
     if monitor_state:
         monitor_state = monitor_state.upper()
+    weight = module.params["weight"]
+    if weight:
+        weight = str(weight)
 
     args = dict(
         monitor_name=module.params["monitor_name"],
         servicegroupname=module.params["servicegroup_name"],
         state=monitor_state,
-        weight=module.params["weight"]
+        weight=weight
     )
+
+    # check for required values, this allows all values to be passed in provider
+    argument_check = dict(host=host, monitor_name=args["monitor_name"], servicegroup_name=args["servicegroupname"])
+    for key, val in argument_check.items():
+        if not val:
+            module.fail_json(msg="The {} parameter is required".format(key))
 
     # "if isinstance(v, bool) or v" should be used if a bool variable is added to args
     proposed = dict((k, v) for k, v in args.items() if v)

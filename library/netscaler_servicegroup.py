@@ -136,7 +136,6 @@ options:
       - Disabled marks it out of service.
       - Enabled marks it serviceable.
     required: false
-    default: enabled
     choices: ["disabled", "enabled"]
   traffic_domain:
     description:
@@ -1086,14 +1085,14 @@ VALID_SERVICETYPES = ["HTTP", "FTP", "TCP", "UDP", "SSL", "SSL_BRIDGE", "SSL_TCP
 
 def main():
     argument_spec = dict(
-        host=dict(required=True, type="str"),
+        host=dict(required=False, type="str"),
         port=dict(required=False, type="int"),
         username=dict(fallback=(env_fallback, ["ANSIBLE_NET_USERNAME"])),
         password=dict(fallback=(env_fallback, ["ANSIBLE_NET_PASSWORD"]), no_log=True),
-        use_ssl=dict(default=True, type="bool"),
-        validate_certs=dict(default=False, type="bool"),
+        use_ssl=dict(required=False, type="bool"),
+        validate_certs=dict(required=False, type="bool"),
         provider=dict(required=False, type="dict"),
-        state=dict(choices=["absent", "present"], default="present", type="str"),
+        state=dict(choices=["absent", "present"], type="str"),
         partition=dict(required=False, type="str"),
         client_timeout=dict(required=False, type="int"),
         comment=dict(required=False, type="str"),
@@ -1101,9 +1100,9 @@ def main():
         max_req=dict(required=False, type="str"),
         server_timeout=dict(required=False, type="int"),
         service_type=dict(choices=VALID_SERVICETYPES, required=False, type="str"),
-        servicegroup_name=dict(required=True, type="str"),
-        servicegroup_state=dict(choices=["disabled", "enabled"], default="enabled", type="str"),
-        traffic_domain=dict(required=False, type="str", default="0")
+        servicegroup_name=dict(required=False, type="str"),
+        servicegroup_state=dict(required=False, choices=["disabled", "enabled"], type="str"),
+        traffic_domain=dict(required=False, type="str")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -1118,30 +1117,64 @@ def main():
     for param, pvalue in provider.items():
         if module.params.get(param) is None:
             module.params[param] = pvalue
-            
+    
+    # module specific args that can be represented as both str or int are normalized to Netscaler's representation for diff comparison in case provider is used  
     host = module.params["host"]
     partition = module.params["partition"]
     password = module.params["password"]
     port = module.params["port"]
     state = module.params["state"]
+    if not state:
+        state = "present"
     use_ssl = module.params["use_ssl"]
+    if use_ssl is None:
+        use_ssl = True
     username = module.params["username"]
     validate_certs = module.params["validate_certs"]
+    if validate_certs is None:
+        validate_certs = False
+    client_timeout = module.params["client_timeout"]
+    if client_timeout:
+        client_timeout = int(client_timeout)
+    max_client = module.params["max_client"]
+    if max_client:
+        max_client = str(max_client)
+    max_req = module.params["max_req"]
+    if max_req:
+        max_req = str(max_req)
+    server_timeout = module.params["server_timeout"]
+    if server_timeout:
+        server_timeout = int(server_timeout)
     service_type = module.params["service_type"]
     if service_type:
         service_type = service_type.upper()
+    servicegroup_state = module.params["servicegroup_state"]
+    if servicegroup_state:
+        servicegroup_state = servicegroup_state.upper()
+    traffic_domain = module.params["traffic_domain"]
+    if traffic_domain:
+        traffic_domain = str(traffic_domain)
+    else:
+        traffic_domain = "0"
+
 
     args = dict(
-        clttimeout=module.params["client_timeout"],
+        clttimeout=client_timeout,
         comment=module.params["comment"],
-        maxclient=module.params["max_client"],
-        maxreq=module.params["max_req"],
-        svrtimeout=module.params["server_timeout"],
+        maxclient=max_client,
+        maxreq=max_req,
+        svrtimeout=server_timeout,
         servicetype=service_type,
         servicegroupname=module.params["servicegroup_name"],
-        state=module.params["servicegroup_state"].upper(),
-        td=module.params["traffic_domain"]
+        state=servicegroup_state,
+        td=traffic_domain
     )
+
+    # check for required values, this allows all values to be passed in provider
+    argument_check = dict(host=host, servicegroup_name=args["servicegroupname"])
+    for key, val in argument_check.items():
+        if not val:
+            module.fail_json(msg="The {} parameter is required".format(key))
 
     # "if isinstance(v, bool) or v" should be used if a bool variable is added to args
     proposed = dict((k, v) for k, v in args.items() if v)
@@ -1191,8 +1224,11 @@ def change_config(session, module, proposed, existing):
 
     config_method, config_diff = session.get_diff(proposed, existing)
     if config_method == "new":
-        changed = True
-        config = session.config_new(module, config_diff)
+        if "servicetype" not in config_diff:
+            module.fail_json(msg="The Service Type is required when configuring a new Service Group.")
+        else:
+            changed = True
+            config = session.config_new(module, config_diff)
 
     elif config_method == "update":
         # raise error if servicetype or traffic domain are different than current config
@@ -1200,14 +1236,13 @@ def change_config(session, module, proposed, existing):
             conflict = dict(existing_service_type=existing["servicetype"], proposed_service_type=proposed["servicetype"], partition=module.params["partition"])
             module.fail_json(msg="Modifying the Service Type is not Supported. This can be achieved by first deleting "
                                  "the Service Group, and then creating a Service Group with the changes.", conflict=conflict)
-
-        if "td" in config_diff:
+        elif "td" in config_diff:
             conflict = dict(existing_traffic_domain=existing["td"], proposed_traffic_domain=proposed["td"], partition=module.params["partition"])
-            module.fail_json(msg="Updating a Service Group's Traffic Domain is not Supported This can be achieved by first deleting "
+            module.fail_json(msg="Updating a Service Group's Traffic Domain is not Supported. This can be achieved by first deleting "
                                  "the Service Group, and then creating a Service Group with the changes.", conflict=conflict)
-
-        changed = True
-        config = session.config_update(module, config_diff)
+        else:
+            changed = True
+            config = session.config_update(module, config_diff)
 
     return {"changed": changed, "config": config, "existing": existing}
 

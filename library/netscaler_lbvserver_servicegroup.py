@@ -905,17 +905,17 @@ class LBVServer(Netscaler):
 
 def main():
     argument_spec = dict(
-        host=dict(required=True, type="str"),
+        host=dict(required=False, type="str"),
         port=dict(required=False, type="int"),
         username=dict(fallback=(env_fallback, ["ANSIBLE_NET_USERNAME"])),
         password=dict(fallback=(env_fallback, ["ANSIBLE_NET_PASSWORD"]), no_log=True),
-        use_ssl=dict(default=True, type="bool"),
-        validate_certs=dict(default=False, type="bool"),
+        use_ssl=dict(required=False, type="bool"),
+        validate_certs=dict(required=False, type="bool"),
         provider=dict(required=False, type="dict"),
-        state=dict(choices=["absent", "present"], default="present", type="str"),
+        state=dict(choices=["absent", "present"], type="str"),
         partition=dict(required=False, type="str"),
-        lbvserver_name=dict(required=True, type="str"),
-        servicegroup_name=dict(required=True, type="str")
+        lbvserver_name=dict(required=False, type="str"),
+        servicegroup_name=dict(required=False, type="str")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -936,9 +936,21 @@ def main():
     password = module.params["password"]
     port = module.params["port"]
     state = module.params["state"]
+    if not state:
+        state = "present"
     use_ssl = module.params["use_ssl"]
+    if use_ssl is None:
+        use_ssl = True
     username = module.params["username"]
     validate_certs = module.params["validate_certs"]
+    if validate_certs is None:
+        validate_certs = False
+
+    # check for required values, this allows all values to be passed in provider
+    argument_check = dict(host=host, lbvserver_name=module.params["lbvserver_name"], servicegroup_name=module.params["servicegroup_name"])
+    for key, val in argument_check.items():
+        if not val:
+            module.fail_json(msg="The {} parameter is required".format(key))
 
     proposed = dict(
         name=module.params["lbvserver_name"],

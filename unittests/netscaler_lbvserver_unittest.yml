@@ -60,7 +60,7 @@
           password: "{{ password }}"
           lbvserver_name: "lbvserver01"
           ip_address: "10.10.30.21"
-          service_type: "SSL_BRIDGE"
+          service_type: "ssl_bridge"
           lbvserver_port: 443
           partition: "LAB" 
 
@@ -72,9 +72,9 @@
           lbvserver_name: "lbvserver01"
           comment: "Comments Still Work"
           client_timeout: 300
-          lbmethod: "ROUNDROBIN"
+          lbmethod: "roundrobin"
           lbvserver_state: "disabled"
-          persistence: "SRCIPDESTIP"
+          persistence: "srcipdestip"
           partition: "LAB" 
 
       - name: CONFIG LB VSERVER IN TRAFFIC DOMAIN - CHANGE
@@ -179,6 +179,47 @@
           password: "{{ password }}"
           lbvserver_name: "lbvserver02"
           state: absent
+
+      - name: SET PROVIDER - NO CHANGE
+        set_fact:
+          provider:
+            host: "{{ inventory_hostname }}"
+            username: "{{ username }}"
+            password: "{{ password }}"
+            lbvserver_name: "lbvserver05"
+            ip_address: "10.10.20.25"
+            service_type: "ANY"
+            conn_failover: "STATEFUL"
+            lbmethod: "ROUNDROBIN"
+            lbvserver_port: "*"
+            persistence: "SRCIPDESTIP"
+
+      - name: CONFIG LB VSERVER WITH PROVIDER - NO CHANGE
+        netscaler_lbvserver:
+          provider: "{{ provider }}"
+
+      - name: CONFIG LB VSERVER OVERRIDE PROVIDER - NO CHANGE
+        netscaler_lbvserver:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver06"
+          ip_address: "10.10.20.26"
+          service_type: "http"
+          conn_failover: "disabled"
+          lbmethod: "leastconnection"
+          lbvserver_port: 80
+          persistence: "sourceip"
+
+      - name: CONFIG LB VSERVER NO HOST - FAIL
+        netscaler_lbvserver:
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "lbvserver01"
+          ip_address: "10.10.20.100"
+          service_type: "HTTP"
+        ignore_errors: yes
+        tags: no_name
 
       - name: CONFIG LB VSERVER NO NAME - FAIL
         netscaler_lbvserver:
@@ -404,15 +445,16 @@
           state: "absent"
           lbvserver_name: "{{ item }}"
         with_items:
-          - lbvserver01
-          - lbvserver02
-          - lbvserver03
-          - lbvserver04
-          - lbvserver05
-          - lbvserver10
-          - lbvserver15
-          - lbvserver20
-          - lbvserver100
+          - "lbvserver01"
+          - "lbvserver02"
+          - "lbvserver03"
+          - "lbvserver04"
+          - "lbvserver05"
+          - "lbvserver06"
+          - "lbvserver10"
+          - "lbvserver15"
+          - "lbvserver20"
+          - "lbvserver100"
 
       - name: CLEANUP LB VSERVERS IN PARTITION - CHANGE
         netscaler_lbvserver:
