@@ -152,7 +152,6 @@ options:
       - Disabled marks it out of service.
       - Enabled marks it serviceable.
     required: false
-    default: enabled
     type: str
     choices: ["disabled", "enabled"]
   persistence:

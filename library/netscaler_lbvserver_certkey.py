@@ -941,7 +941,7 @@ def main():
         port=dict(required=False, type="int"),
         username=dict(fallback=(env_fallback, ["ANSIBLE_NET_USERNAME"])),
         password=dict(fallback=(env_fallback, ["ANSIBLE_NET_PASSWORD"]), no_log=True),
-        use_ssl=dict(required =False, type="bool"),
+        use_ssl=dict(required=False, type="bool"),
         validate_certs=dict(required=False, type="bool"),
         provider=dict(required=False, type="dict"),
         state=dict(choices=["absent", "present"], type="str"),
