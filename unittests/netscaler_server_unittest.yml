@@ -118,6 +118,45 @@
           ip_address: "10.1.1.22"
           traffic_domain: 10
 
+      - name: SET PROVIDER - NO CHANGE
+        set_fact:
+          provider:
+            host: "{{ inventory_hostname }}"
+            username: "{{ username }}"
+            password: "{{ password }}"
+            server_name: "server01"
+            ip_address: "10.1.1.21"
+            traffic_domain: 10
+
+      - name: CONFIG SERVER IN TRAFFIC DOMAIN WITH PROVIDER - NO CHANGE
+        netscaler_server:
+          provider: "{{ provider }}"
+
+      - name: CONFIG SERVER OVERRIDE PROVIDER - CHANGE
+        netscaler_server:
+          provider: "{{ provider }}"
+          server_name: "server06"
+          ip_address: "10.2.1.21"
+          traffic_domain: 0
+
+      - name: CONFIG SERVER WITHOUT HOST - FAIL
+        netscaler_server:
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server05"
+          ip_address: "10.1.1.25"
+        ignore_errors: yes
+        tags: no_name
+
+      - name: CONFIG SERVER WITHOUT NAME - FAIL
+        netscaler_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          ip_address: "10.1.1.25"
+        ignore_errors: yes
+        tags: no_name
+
       - name: CONFIG SERVER WITH DUPLICATE NAME - FAIL
         netscaler_server:
           host: "{{ inventory_hostname }}"
@@ -157,15 +196,6 @@
           ip_address: "10.1.1.100"
           config_override: true
         tags: dup_ip
-
-      - name: CONFIG SERVER WITHOUT NAME - FAIL
-        netscaler_server:
-          host: "{{ inventory_hostname }}"
-          username: "{{ username }}"
-          password: "{{ password }}"
-          ip_address: "10.1.1.25"
-        ignore_errors: yes
-        tags: no_name
 
       - name: CONFIG SERVER WITHOUT IP - FAIL
         netscaler_server:
@@ -219,6 +249,7 @@
           - "server03"
           - "server04"
           - "server05"
+          - "server06"
           - "server25"
         tags: cleanup
 

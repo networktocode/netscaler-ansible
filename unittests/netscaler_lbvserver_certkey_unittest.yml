@@ -76,6 +76,14 @@
           partition: "LAB"
           state: "absent"
 
+      - name: CREATE VSERVER TO CERT KEY BINDING NO HOST - FAIL
+        netscaler_lbvserver_certkey:
+          username: "{{ username }}"
+          password: "{{ password }}"
+          vserver_name: "vserver01"
+          cert_key_name: "test"
+        ignore_errors: yes
+
       - name: CREATE VSERVER TO CERT KEY BINDING NO VSERVER NAME - FAIL
         netscaler_lbvserver_certkey:
           host: "{{ inventory_hostname }}"

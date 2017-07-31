@@ -90,6 +90,32 @@
           partition: "LAB"
           state: "absent"
 
+      - name: CREATE SERVICE GROUP TO VSERVER BINDING AGAIN - NO CHANGE
+        set_fact:
+          provider:
+            host: "{{ inventory_hostname }}"
+            username: "{{ username }}"
+            password: "{{ password }}"
+            lbvserver_name: "vserver01"
+            servicegroup_name: "servicegroup01"
+
+      - name: CREATE SERVICE GROUP TO VSERVER BINDING WITH PROVIDER - NO CHANGE
+        netscaler_lbvserver_servicegroup:
+          provider: "{{ provider }}"
+
+      - name: CREATE SERVICE GROUP TO VSERVER BINDING OVERRIDE PROVIDER - CHANGE
+        netscaler_lbvserver_servicegroup:
+          provider: "{{ provider }}"
+          lbvserver_name: "vserver02"
+          servicegroup_name: "servicegroup02"
+
+      - name: CREATE SERVICE GROUP TO VSERVER BINDING NO HOST - FAIL
+        netscaler_lbvserver_servicegroup:
+          username: "{{ username }}"
+          password: "{{ password }}"
+          lbvserver_name: "vserver01"
+          servicegroup_name: "servicegroup01"
+        ignore_errors: yes
 
       - name: CREATE SERVICE GROUP TO VSERVER BINDING NO VSERVER NAME - FAIL
         netscaler_lbvserver_servicegroup:
@@ -145,8 +171,8 @@
         with_items:
           - vserver: "vserver01"
             servicegroup: "servicegroup01"
-          - vserver: "vserver01"
-            servicegroup: "servicegroup01"
+          - vserver: "vserver02"
+            servicegroup: "servicegroup02"
           - vserver: "vserver01"
             servicegroup: "servicegroup01"
             partition: "LAB"

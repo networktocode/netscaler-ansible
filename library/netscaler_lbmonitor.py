@@ -129,7 +129,6 @@ options:
       - Enabled marks it serviceable.
     required: false
     type: str
-    default: enabled
     choices: ["disabled", "enabled"]
   monitor_type:
     description:
@@ -852,6 +851,7 @@ class LBMonitor(Netscaler):
         :return: A tuple indicating whether the config is a new object, will update an existing object, or make no
                  changes, and a dict that corresponds to the body of a config request using the Nitro API.
         """
+        # response codes are a list and need to be popped for diff to work
         if "respcode" in proposed:
             proposed_respcode_list = proposed.pop("respcode")
             proposed_respcode_set = LBMonitor.expand_resp_codes(proposed_respcode_list)
@@ -877,28 +877,38 @@ class LBMonitor(Netscaler):
             diff = dict(set(proposed.items()).difference(existing.items()))
             short_respcodes = []
 
+        # add existing reponse codes back to exsiting since it was popped for diff
         if existing_respcode_list:
             existing["respcodes"] = existing_respcode_list
 
+        # handle new config
         if diff == proposed:
-            proposed["respcode"] = short_respcodes
-            return "new", proposed
+            if short_respcodes:
+                proposed["respcode"] = short_respcodes
+                return "new", proposed
+            else:
+                return "new", proposed
+        # handle invalid diffs
         elif "type" in diff:
             return "mismatch", {"proposed_monitor": proposed["type"], "existing_monitor": existing["type"]}
+        # handle update config with response codes
         elif diff and short_respcodes:
             diff["monitorname"] = proposed["monitorname"]
             diff["type"] = existing["type"]
             diff["respcode"] = short_respcodes
             return "update", diff
+        # handle update without short response codes
         elif diff:
             diff["monitorname"] = proposed["monitorname"]
             diff["type"] = existing["type"]
             return "update", diff
+        # handle update of only response codes
         elif short_respcodes:
             diff["monitorname"] = proposed["monitorname"]
             diff["type"] = existing["type"]
             diff["respcode"] = short_respcodes
             return "update", diff
+        # handle no diff
         else:
             return "none", {}
 
@@ -919,28 +929,28 @@ VALID_TYPES = ["PING", "TCP", "HTTP", "TCP-ECV", "HTTP-ECV", "UDP-ECV", "DNS", "
 
 def main():
     argument_spec = dict(
-        host=dict(required=True, type="str"),
+        host=dict(required=False, type="str"),
         port=dict(required=False, type="int"),
         username=dict(fallback=(env_fallback, ["ANSIBLE_NET_USERNAME"])),
         password=dict(fallback=(env_fallback, ["ANSIBLE_NET_PASSWORD"]), no_log=True),
-        use_ssl=dict(default=True, type="bool"),
-        validate_certs=dict(default=False, type="bool"),
+        use_ssl=dict(required=False, type="bool"),
+        validate_certs=dict(required=False, type="bool"),
         provider=dict(required=False, type="dict"),
-        state=dict(choices=["absent", "present"], default="present", type="str"),
+        state=dict(choices=["absent", "present"], type="str"),
         partition=dict(required=False, type="str"),
         custom_headers=dict(required=False, type="str"),
         http_request=dict(required=False, type="str"),
         monitor_dest_ip=dict(required=False, type="str"),
         monitor_dest_port=dict(required=False, type="int"),
-        monitor_name=dict(required=True, type="str"),
+        monitor_name=dict(required=False, type="str"),
         monitor_password=dict(required=False, type="str", no_log=True),
         monitor_secondary_password=dict(required=False, type="str", no_log=True),
-        monitor_state=dict(choices=["disabled", "enabled"], required=False, type="str", default="enabled"),
+        monitor_state=dict(choices=["disabled", "enabled"], required=False, type="str"),
         monitor_type=dict(choices=VALID_TYPES, required=False, type="str"),
         monitor_use_ssl=dict(choices=["YES", "NO", "yes", "no"], required=False, type="str"),
         monitor_username=dict(required=False, type="str"),
         response_code=dict(required=False, type="list"),
-        response_code_action=dict(choices=["add", "remove"], required=False, type="str", default="add")
+        response_code_action=dict(choices=["add", "remove"], required=False, type="str")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -956,39 +966,62 @@ def main():
         if module.params.get(param) is None:
             module.params[param] = pvalue
 
+    # module specific args that can be represented as both str or int are normalized to Netscaler's representation for diff comparison in case provider is used  
     host = module.params["host"]
     partition = module.params["partition"]
     password = module.params["password"]
     port = module.params["port"]
     state = module.params["state"]
+    if not state:
+        state = "present"
     use_ssl = module.params["use_ssl"]
+    if use_ssl is None:
+        use_ssl = True
     username = module.params["username"]
     validate_certs = module.params["validate_certs"]
+    if validate_certs is None:
+        validate_certs = False
+    monitor_dest_port = module.params["monitor_dest_port"]
+    if monitor_dest_port:
+        monitor_dest_port = int(monitor_dest_port)
+    monitor_state = module.params["monitor_state"]
+    if monitor_state:
+        monitor_state = monitor_state.upper()
     monitor_type = module.params["monitor_type"]
     if monitor_type:
         monitor_type = monitor_type.upper()
     monitor_use_ssl = module.params["monitor_use_ssl"]
     if monitor_use_ssl:
         monitor_use_ssl = monitor_use_ssl.upper()
-    response_code_action = module.params["response_code_action"]
     response_code = module.params["response_code"]
-    if response_code:
+    if response_code and isinstance(response_code, list):
         response_code = [str(code).strip() for code in response_code]
+    elif response_code and isinstance(response_code, str):
+        response_code = [response_code.strip()]
+    response_code_action = module.params["response_code_action"]
+    if not response_code_action:
+        response_code_action = "add"
 
     args = dict(
         customheaders=module.params["custom_headers"],
         destip=module.params["monitor_dest_ip"],
-        destport=module.params["monitor_dest_port"],
+        destport=monitor_dest_port,
         httprequest=module.params["http_request"],
         monitorname=module.params["monitor_name"],
         password=module.params["monitor_password"],
         respcode=response_code,
         secondarypassword=module.params["monitor_secondary_password"],
         secure=monitor_use_ssl,
-        state=module.params["monitor_state"].upper(),
+        state=monitor_state,
         type=monitor_type,
         username=module.params["monitor_username"]
     )
+
+    # check for required values, this allows all values to be passed in provider
+    argument_check = dict(host=host, monitor_name=args["monitorname"])
+    for key, val in argument_check.items():
+        if not val:
+            module.fail_json(msg="The {} parameter is required".format(key))
 
     # "if isinstance(v, bool) or v" should be used if a bool variable is added to args
     proposed = dict((k, v) for k, v in args.items() if v == 0 or v)

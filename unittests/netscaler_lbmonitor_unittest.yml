@@ -49,7 +49,7 @@
           monitor_name: "monitor01"
           monitor_state: "disabled"
 
-      - name: DISABLE TCP MONITOR - CHANGE
+      - name: ENABLE TCP MONITOR - CHANGE
         netscaler_lbmonitor:
           host: "{{ inventory_hostname }}"
           username: "{{ username }}"
@@ -78,6 +78,31 @@
           monitor_type: "HTTP"
           monitor_use_ssl: "YES"
           response_code: "200-202"
+
+      - name: SET PROVIDER - NO CHANGE
+        set_fact:
+          provider:
+            host: "{{ inventory_hostname }}"
+            username: "{{ username }}"
+            password: "{{ password }}" 
+            monitor_name: "monitor02"
+            http_request: "HEAD /healthceck.html"
+            monitor_type: "http"
+            monitor_use_ssl: "yes"
+            response_code: "200-202"
+
+      - name: CREATE HTTP MONITOR WITH PROVIDER - NO CHANGE
+        netscaler_lbmonitor:
+          provider: "{{ provider }}"
+
+      - name: CREATE HTTP MONITOR OVERRIDE PROVIDER - CHANGE
+        netscaler_lbmonitor:
+          provider: "{{ provider }}"
+          monitor_name: "monitor03"
+          http_request: "HEAD /health.html"
+          monitor_type: "http"
+          monitor_use_ssl: "no"
+          response_code: 203
 
       - name: CREATE HTTP MONITOR AGAIN LESS PARAMS - NO CHANGE
         netscaler_lbmonitor:
@@ -196,6 +221,22 @@
           monitor_name: "monitor01"
           monitor_type: "PING"
           partition: "LAB"
+
+      - name: CREATE MONITOR NO HOST - FAIL
+        netscaler_lbmonitor:
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor02"
+          monitor_type: "TCP"
+        ignore_errors: true
+
+      - name: CREATE MONITOR NO NAME - FAIL
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_type: "TCP"
+        ignore_errors: true
 
       - name: MODIFY MONITOR TYPE - FAIL
         netscaler_lbmonitor:

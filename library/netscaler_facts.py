@@ -1123,19 +1123,20 @@ SUBSET_OPTIONS = SUBSET_INCLUDE + SUBSET_EXCLUDE
 
 def main():
     argument_spec = dict(
-        host=dict(required=True, type="str"),
+        host=dict(required=False, type="str"),
         port=dict(required=False, type="int"),
         username=dict(fallback=(env_fallback, ["ANSIBLE_NET_USERNAME"])),
         password=dict(fallback=(env_fallback, ["ANSIBLE_NET_PASSWORD"]), no_log=True),
-        use_ssl=dict(default=True, type="bool"),
-        validate_certs=dict(default=False, type="bool"),
+        use_ssl=dict(required=False, type="bool"),
+        validate_certs=dict(required=False, type="bool"),
         provider=dict(required=False, type="dict"),
         partition=dict(required=False, type="str"),
-        gather_subset=dict(required=False, type="list", default=["all"]),
-        config_scope=dict(choices=["true", "false"], required=False, type="str", default="false"),
+        gather_subset=dict(required=False, type="list"),
+        config_scope=dict(choices=["true", "false"], required=False, type="str"),
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=False)
+
     provider = module.params["provider"] or {}
 
     no_log = ["password"]
@@ -1153,10 +1154,26 @@ def main():
     password = module.params["password"]
     port = module.params["port"]
     use_ssl = module.params["use_ssl"]
+    if use_ssl is None:
+        use_ssl = True
     username = module.params["username"]
     validate_certs = module.params["validate_certs"]
+    if validate_certs is None:
+        validate_certs = False
     gather_subset = module.params["gather_subset"]
+    if not gather_subset:
+        gather_subset = ["all"]
+    elif isinstance(gather_subset, str):
+        gather_subset = [gather_subset]
     config_scope = module.params["config_scope"]
+    if not config_scope:
+        config_scope = "false"
+
+    # check for required values, this allows all values to be passed in provider
+    argument_check = dict(host=host)
+    for key, val in argument_check.items():
+        if not val:
+            module.fail_json(msg="The {} parameter is required".format(key))
 
     for subset in gather_subset:
         if subset not in SUBSET_OPTIONS:
