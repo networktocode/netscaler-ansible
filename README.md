@@ -94,8 +94,8 @@ $ ansible-doc netscaler_save_config
 If that works, Ansible can find the modules and you can proceed to installing the dependencies below.
 
 ## Install Dependencies
+All of the dependencies can be installed using the requirements.txt file that comes with the modules.
 ```
-$ cd netscaler-ansible
 $ pip install -r requirements.txt
 ```
 
