@@ -78,20 +78,15 @@ library        = /home/ntc/projects/
 Add a path for `library` that exists in this repository - this will become your search path. Validate it with `ansible --version` after you make the change.
 
 ### Clone the repo in your search path
-
-**Option 1:**
+Once you have located your search path; browse to that directory and clone the netscaler-ansible repo:
 ```
-$ git clone https://github.com/networktocode/netscaler-ansible
-```
-
-**Option 2:**
-```
-$ git clone https://github.com/networktocode/netscaler-ansible
+$ cd /home/ntc/projects
+$ git clone https://github.com/networktocode/netscaler-ansible.git
 $ cd netscaler-ansible
 
 ```
 
-As a quick test and sanity use `ansible-doc` on one of the modules before trying to use them in a playbook.  For example, try this:
+As a quick test and sanity-check use `ansible-doc` on one of the modules before trying to use them in a playbook.  For example, try this:
 ```
 $ ansible-doc netscaler_save_config
 ```
