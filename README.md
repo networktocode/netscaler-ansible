@@ -82,13 +82,11 @@ Once you have located your search path; browse to that directory and clone the n
 ```
 $ cd /home/ntc/projects
 $ git clone https://github.com/networktocode/netscaler-ansible.git
-
 ```
 
 As a quick test and sanity-check use `ansible-doc` on one of the modules before trying to use them in a playbook.  For example, try this:
 ```
 $ ansible-doc netscaler_save_config
-
 ```
 
 If that works, Ansible can find the modules and you can proceed to installing the dependencies below.
@@ -98,7 +96,6 @@ All of the dependencies can be installed using the requirements.txt file that co
 ```
 $ cd netscaler-ansible
 $ pip install -r requirements.txt
-
 ```
 
 
