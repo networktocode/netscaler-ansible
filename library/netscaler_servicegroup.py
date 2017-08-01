@@ -186,6 +186,11 @@ config:
     type: list
     sample: [{"method": "post", "url": "https://netscaler/nitro/v1/config/servicegroup", 
              "body": {"servicegroupname": "svcgrp_app01", "svrtimeout": 180}}]
+logout:
+    description: The result from closing the session with the Netscaler. True means successful logout; False means unsuccessful logout.
+    returned: always
+    type: bool
+    sample: True
 '''
 
 
@@ -288,7 +293,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             url = self.url + self.api_endpoint + "/" + object_name
             config.append({"method": "delete", "url": url, "body": {}})
@@ -312,7 +318,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint, "body": new_config})
 
@@ -339,7 +346,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": rename_config})
             else:
-                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "?action=rename", "body": rename_config})
 
@@ -369,7 +377,8 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "post", "url": config_status.url, "body": {"name": update_config["name"]}})
                 else:
-                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json())
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 url = self.url + self.api_endpoint + "?action={}".format(config_state)
                 config.append({"method": "post", "url": url, "body": {"name": update_config["name"]}})
@@ -380,7 +389,8 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "put", "url": self.url, "body": update_config})
                 else:
-                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json())
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 config.append({"method": "put", "url": self.url, "body": update_config})
 
@@ -575,6 +585,17 @@ class Netscaler(object):
 
         return login
 
+    def logout(self):
+        """
+        The logout method is used to close the established connection with the Netscaler device.
+        :return: The response from the logout request.
+        """
+        url = self.url + "logout"
+        body = {"logout": {}}
+        logout = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return logout
+
     def post_config(self, new_config):
         """
         This method is used to submit a configuration request to the Netscaler using the Nitro API.
@@ -678,7 +699,8 @@ class ServiceGroup(Netscaler):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg="Unable to Add New Monitor Binding", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Add New Monitor Binding", netscaler_response=config_status.json(), logout=logout.ok)
 
             if config_state == "disable":
                 config_status = self.change_monitor_state(new_config["servicegroupname"],
@@ -688,7 +710,8 @@ class ServiceGroup(Netscaler):
                                    "body": {"servicegroupname": new_config["servicegroupname"],
                                    "monitorname": new_config["monitor_name"]}})
                 else:
-                    module.fail_json(msg="Added New Monitor Binding, but Unable to Disable New Binding", netscaler_response=config_status.json())
+                    logout = self.logout()
+                    module.fail_json(msg="Added New Monitor Binding, but Unable to Disable New Binding", netscaler_response=config_status.json(), logout=logout.ok)
 
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "_lbmonitor_binding",
@@ -718,7 +741,8 @@ class ServiceGroup(Netscaler):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg="Unable to Bind Server", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Bind Server", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "_servicegroupmember_binding",
                            "body": new_config})
@@ -811,7 +835,8 @@ class ServiceGroup(Netscaler):
                     config.append({"method": "post", "url": config_status.url,
                                    "body": {"servicegroupname": update_config["servicegroupname"]}})
                 else:
-                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json())
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 url = self.url + self.api_endpoint + "?action={}".format(config_state)
                 config.append({"method": "post", "url": url,
@@ -823,7 +848,8 @@ class ServiceGroup(Netscaler):
                 if config_status.ok:
                     config.append({"method": "put", "url": self.url, "body": update_config})
                 else:
-                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json())
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 config.append({"method": "put", "url": self.url, "body": update_config})
 
@@ -855,7 +881,8 @@ class ServiceGroup(Netscaler):
                                    "body": {"servicegroupname": update_config["servicegroupname"],
                                    "monitorname": update_config["monitor_name"]}})
                 else:
-                    module.fail_json(msg="Unable to Change Monitor Binding's State", netscaler_response=config_status.json())
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Change Monitor Binding's State", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 url = self.url + "lbmonitor?action={}".format(config_state)
                 config.append({"method": "post", "url": url,
@@ -863,8 +890,9 @@ class ServiceGroup(Netscaler):
                                "monitorname": update_config["monitor_name"]}})
 
         if len(update_config) > 2:
+            logout = self.logout()
             module.fail_json(msg="The Netscaler Nitro API does not support modifying the Service Group to Monitor Bindings."
-                                 "In order to make an update, you will first need to Delete the Binding, then create a new Binding")
+                                 "In order to make an update, you will first need to Delete the Binding, then create a new Binding", logout=logout.ok)
 
         return config
 
@@ -1001,7 +1029,8 @@ class ServiceGroup(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg="Unable to Remove Monitor Binding", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Remove Monitor Binding", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             url = self.url + self.api_endpoint + \
                   "_lbmonitor_binding?args=servicegroupname:{},monitor_name:{}".format(
@@ -1029,7 +1058,8 @@ class ServiceGroup(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg="Unable to Remove Server Binding", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Remove Server Binding", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             url = self.url + self.api_endpoint + \
                   "_servicegroupmember_binding?args=servicegroupname:{},servername:{},port:{}".format(
@@ -1190,7 +1220,8 @@ def main():
     if partition:
         session_switch = session.switch_partition(partition)
         if not session_switch.ok:
-            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json())
+            session_logout = session.logout()
+            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json(), logout=session_logout.ok)
 
     existing_attrs = args.keys()
     existing = session.get_existing_attrs(proposed["servicegroupname"], existing_attrs)
@@ -1199,6 +1230,9 @@ def main():
         results = change_config(session, module, proposed, existing)
     else:
         results = delete_servicegroup(session, module, proposed["servicegroupname"], existing)
+
+    session_logout = session.logout()
+    results["logout"] = session_logout.ok
 
     return module.exit_json(**results)
 
@@ -1225,7 +1259,8 @@ def change_config(session, module, proposed, existing):
     config_method, config_diff = session.get_diff(proposed, existing)
     if config_method == "new":
         if "servicetype" not in config_diff:
-            module.fail_json(msg="The Service Type is required when configuring a new Service Group.")
+            session_logout = session.logout()
+            module.fail_json(msg="The Service Type is required when configuring a new Service Group.", logout=session_logout.ok)
         else:
             changed = True
             config = session.config_new(module, config_diff)
@@ -1234,17 +1269,19 @@ def change_config(session, module, proposed, existing):
         # raise error if servicetype or traffic domain are different than current config
         if "servicetype" in config_diff:
             conflict = dict(existing_service_type=existing["servicetype"], proposed_service_type=proposed["servicetype"], partition=module.params["partition"])
+            session_logout = session.logout()
             module.fail_json(msg="Modifying the Service Type is not Supported. This can be achieved by first deleting "
-                                 "the Service Group, and then creating a Service Group with the changes.", conflict=conflict)
+                                 "the Service Group, and then creating a Service Group with the changes.", conflict=conflict, logout=session_logout.ok)
         elif "td" in config_diff:
             conflict = dict(existing_traffic_domain=existing["td"], proposed_traffic_domain=proposed["td"], partition=module.params["partition"])
+            session_logout = session.logout()
             module.fail_json(msg="Updating a Service Group's Traffic Domain is not Supported. This can be achieved by first deleting "
-                                 "the Service Group, and then creating a Service Group with the changes.", conflict=conflict)
+                                 "the Service Group, and then creating a Service Group with the changes.", conflict=conflict, logout=session_logout.ok)
         else:
             changed = True
             config = session.config_update(module, config_diff)
 
-    return {"changed": changed, "config": config, "existing": existing}
+    return dict(changed=changed, config=config, existing=existing)
 
 
 def delete_servicegroup(session, module, proposed_name, existing):
@@ -1267,7 +1304,7 @@ def delete_servicegroup(session, module, proposed_name, existing):
         changed = True
         config = session.config_delete(module, proposed_name)
 
-    return {"changed": changed, "config": config, "existing": existing}
+    return dict(changed=changed, config=config, existing=existing)
 
 
 if __name__ == "__main__":

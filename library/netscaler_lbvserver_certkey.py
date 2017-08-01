@@ -147,6 +147,11 @@ EXAMPLES = '''
     partition: Lab
     port: 8080
     use_ssl: False
+logout:
+    description: The result from closing the session with the Netscaler. True means successful logout; False means unsuccessful logout.
+    returned: always
+    type: bool
+    sample: True
 '''
 
 RETURN = '''
@@ -267,7 +272,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             url = self.url + self.api_endpoint + "/" + object_name
             config.append({"method": "delete", "url": url, "body": {}})
@@ -291,7 +297,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint, "body": new_config})
 
@@ -318,7 +325,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": rename_config})
             else:
-                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "?action=rename", "body": rename_config})
 
@@ -348,7 +356,8 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "post", "url": config_status.url, "body": {"name": update_config["name"]}})
                 else:
-                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json())
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 url = self.url + self.api_endpoint + "?action={}".format(config_state)
                 config.append({"method": "post", "url": url, "body": {"name": update_config["name"]}})
@@ -359,7 +368,8 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "put", "url": self.url, "body": update_config})
                 else:
-                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json())
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 config.append({"method": "put", "url": self.url, "body": update_config})
 
@@ -554,6 +564,17 @@ class Netscaler(object):
 
         return login
 
+    def logout(self):
+        """
+        The logout method is used to close the established connection with the Netscaler device.
+        :return: The response from the logout request.
+        """
+        url = self.url + "logout"
+        body = {"logout": {}}
+        logout = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return logout
+
     def post_config(self, new_config):
         """
         This method is used to submit a configuration request to the Netscaler using the Nitro API.
@@ -656,7 +677,8 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg="Unable to Bind Cert Key", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Bind Cert Key", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + "sslvserver_sslcertkey_binding", "body": new_config})
 
@@ -679,7 +701,8 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg="Unable to Bind Service Group", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Bind Service Group", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "_servicegroup_binding",
                            "body": new_config})
@@ -713,38 +736,6 @@ class LBVServer(Netscaler):
         response = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
 
         return response
-
-    def check_duplicate_ip_port_service(self, proposed):
-        """
-        The purpose of this method is to identify if the proposed lbvserver has either an "ipv46" and "servicetype" or
-        an "ipv46" and "port" value combination that already exists in the current partition and traffic domain. This
-        should be used to prevent an invalid API request since each lbvserver "ipv46" must not reuse either
-        "servicetype" or "port" values.
-        :param proposed: Type dict.
-                         The proposed lbvserver configuration.
-        :return: A dictionary with the information about colliding lbvserver. An empty dictionary is returned if all
-                 combinations are unique.
-        """
-        ip_address = proposed["ipv46"]
-        traffic_domain = proposed["td"]
-        service_type = proposed["servicetype"]
-        port = proposed["port"]
-
-        colliding_lbvserver_dict = {}
-        colliding_lbvserver = self.get_lbvserver_by_ip_td_servicetype(ip_address, traffic_domain, service_type)
-
-        if not colliding_lbvserver:
-            colliding_lbvserver = self.get_lbvserver_by_ip_td_port(ip_address, traffic_domain, port)
-
-        if colliding_lbvserver:
-            colliding_lbvserver_dict["proposed_name"] = proposed["name"]
-            colliding_lbvserver_dict["existing_name"] = colliding_lbvserver["name"]
-            colliding_lbvserver_dict["ip_address"] = ip_address
-            colliding_lbvserver_dict["traffic_domain"] = traffic_domain
-            colliding_lbvserver_dict["existing_service"] = colliding_lbvserver["servicetype"]
-            colliding_lbvserver_dict["existing_port"] = colliding_lbvserver["port"]
-
-        return colliding_lbvserver_dict
 
     def get_all(self):
         """
@@ -786,26 +777,6 @@ class LBVServer(Netscaler):
         response = self.session.get(url, headers=self.headers, verify=self.verify)
 
         return response.json().get("sslvserver_sslcertkey_binding", [])
-
-    def get_lbvserver_by_ip_td_servicetype(self, ip_address, traffic_domain, service_type):
-        """
-        This method is used to collect the config of a server with an identical "ipv46," "td," and "port" as the
-        proposed lbvserver.
-        :param ip_address: Type str.
-                           The proposed "ipaddress" value.
-        :param traffic_domain: Type str.
-                               The proposed "td" value.
-        :param service_type: Type str.
-                             The proposed "servicetype" value.
-        :return: A dictionary of the server configuration. If the server is unique, then an empty dictionary is
-                 returned.
-        """
-        url = self.url + self.api_endpoint + "?filter=ipv46:{},td:{},servicetype:{}".format(
-            ip_address, traffic_domain, service_type
-        )
-        response = self.session.get(url, headers=self.headers, verify=self.verify)
-
-        return response.json().get("lbvserver", [{}])[0]
 
     def get_lbvserver_by_ip_td_port(self, ip_address, traffic_domain, port):
         """
@@ -857,7 +828,8 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg="Unable to Remove Cert Key Binding", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Remove Cert Key Binding", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             args_list = new_config.items()
             args = "?args="
@@ -888,7 +860,8 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg="Unable to Remove Service Group Binding", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Remove Service Group Binding", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             url = self.url + self.api_endpoint + "_servicegroup_binding?args=name:{},servicegroupnaname:{}".format(
                 new_config["name"], new_config["servicegroupname"])
@@ -932,7 +905,6 @@ class LBVServer(Netscaler):
         response = self.session.delete(url, headers=self.headers, verify=self.verify)
 
         return response
-
 
 
 def main():
@@ -1013,7 +985,8 @@ def main():
     if partition:
         session_switch = session.switch_partition(partition)
         if not session_switch.ok:
-            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json())
+            session_logout = session.logout()
+            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json(), logout=session_logout.ok)
 
     all_existing = session.get_certkey_bindings(proposed)
 
@@ -1021,6 +994,9 @@ def main():
         results = change_config(session, module, proposed, all_existing)
     else:
         results = delete_certkey_binding(session, module, proposed, all_existing)
+
+    session_logout = session.logout()
+    results["logout"] = session_logout.ok
 
     return module.exit_json(**results)
 
@@ -1047,7 +1023,7 @@ def change_config(session, module, proposed, all_existing):
     else:
         existing = proposed
 
-    return {"all_existing": all_existing, "changed": changed, "config": config, "existing": existing}
+    return dict(all_existing=all_existing, changed=changed, config=config, existing=existing)
 
 
 def delete_certkey_binding(session, module, proposed, all_existing):
@@ -1072,7 +1048,7 @@ def delete_certkey_binding(session, module, proposed, all_existing):
     else:
         existing = {}
 
-    return {"all_existing": all_existing, "changed": changed, "config": config, "existing": existing}
+    return dict(all_existing=all_existing, changed=changed, config=config, existing=existing)
 
 
 if __name__ == "__main__":

@@ -242,6 +242,11 @@ config:
     sample: [{"method": "post", "url": "https://netscaler/nitro/v1/config/lbvserver?action=disable",
               "body": {}},{"method": "put", "url": "https://10.1.100.121/nitro/v1/config/"
               "body": {"comment": "Temp Disable", "name": "test"}}]
+logout:
+    description: The result from closing the session with the Netscaler. True means successful logout; False means unsuccessful logout.
+    returned: always
+    type: bool
+    sample: True
 '''
 
 
@@ -344,7 +349,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             url = self.url + self.api_endpoint + "/" + object_name
             config.append({"method": "delete", "url": url, "body": {}})
@@ -368,7 +374,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint, "body": new_config})
 
@@ -395,7 +402,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": rename_config})
             else:
-                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "?action=rename", "body": rename_config})
 
@@ -425,7 +433,8 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "post", "url": config_status.url, "body": {"name": update_config["name"]}})
                 else:
-                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json())
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 url = self.url + self.api_endpoint + "?action={}".format(config_state)
                 config.append({"method": "post", "url": url, "body": {"name": update_config["name"]}})
@@ -436,7 +445,8 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "put", "url": self.url, "body": update_config})
                 else:
-                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json())
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 config.append({"method": "put", "url": self.url, "body": update_config})
 
@@ -631,6 +641,17 @@ class Netscaler(object):
 
         return login
 
+    def logout(self):
+        """
+        The logout method is used to close the established connection with the Netscaler device.
+        :return: The response from the logout request.
+        """
+        url = self.url + "logout"
+        body = {"logout": {}}
+        logout = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return logout
+
     def post_config(self, new_config):
         """
         This method is used to submit a configuration request to the Netscaler using the Nitro API.
@@ -733,7 +754,8 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg="Unable to Bind Cert Key", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Bind Cert Key", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + "sslvserver_sslcertkey_binding", "body": new_config})
 
@@ -756,7 +778,8 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg="Unable to Bind Service Group", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Bind Service Group", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "_servicegroup_binding",
                            "body": new_config})
@@ -882,7 +905,8 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg="Unable to Remove Cert Key Binding", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Remove Cert Key Binding", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             args_list = new_config.items()
             args = "?args="
@@ -913,7 +937,8 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg="Unable to Remove Service Group Binding", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Remove Service Group Binding", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             url = self.url + self.api_endpoint + "_servicegroup_binding?args=name:{},servicegroupnaname:{}".format(
                 new_config["name"], new_config["servicegroupname"])
@@ -1110,7 +1135,8 @@ def main():
     if partition:
         session_switch = session.switch_partition(partition)
         if not session_switch.ok:
-            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json())
+            session_logout = session.logout()
+            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json(), logout=session_logout.ok)
 
     existing_attrs = args.keys()
     existing = session.get_existing_attrs(proposed["name"], existing_attrs)
@@ -1119,6 +1145,9 @@ def main():
         results = change_config(session, module, proposed, existing)
     else:
         results = delete_lbvserver(session, module, proposed["name"], existing)
+
+    session_logout = session.logout()
+    results["logout"] = session_logout.ok
 
     return module.exit_json(**results)
 
@@ -1155,7 +1184,8 @@ def change_config(session, module, proposed, existing):
                 traffic_domain=dup_lbvserver["td"], service_type=dup_lbvserver["servicetype"], port=dup_lbvserver["port"],
                 partition=module.params["partition"]
             )
-            module.fail_json(msg="Changing a LB VServer's Name requires setting the config_override param to True:.", conflict=dup_dict)
+            session_logout = session.logout()
+            module.fail_json(msg="Changing a LB VServer's Name requires setting the config_override param to True:.", conflict=dup_dict, logout=session_logout.ok)
         elif dup_lbvserver:
            changed = True
            rename = session.config_rename(module, dup_lbvserver["name"], proposed["name"])
@@ -1166,14 +1196,18 @@ def change_config(session, module, proposed, existing):
         # raise error if new primary lbvserver does not include proper port and servicetype configurations
         if "ipv46" in config_diff and config_diff["ipv46"] != "0.0.0.0":
             if "port" not in config_diff or "servicetype" not in config_diff:
-                module.fail_json(msg="The Port and Service Type must be specified when creating a new Primary LB VServer.")
+                session_logout = session.logout()
+                module.fail_json(msg="The Port and Service Type must be specified when creating a new Primary LB VServer.", logout=session_logout.ok)
             elif config_diff["port"] == 0:
-                module.fail_json(msg="A Port value of 0 is only supported with an IP Address of '0.0.0.0'")
+                session_logout = session.logout()
+                module.fail_json(msg="A Port value of 0 is only supported with an IP Address of '0.0.0.0'", logout=session_logout.ok)
         # raise error if new backup lbvserver has set the port to a value other than 0
         elif "ipv46" in config_diff and config_diff.get("port") != 0:
-            module.fail_json(msg="An IP Address value of '0.0.0.0' only supports a Port of 0")
+            session_logout = session.logout()
+            module.fail_json(msg="An IP Address value of '0.0.0.0' only supports a Port of 0", logout=session_logout.ok)
         elif "ipv46" not in config_diff and config_diff.get("port", 0) != 0:
-            module.fail_json(msg="The IP Address must be specified when creating a new Primary LB VServer")
+            session_logout = session.logout()
+            module.fail_json(msg="The IP Address must be specified when creating a new Primary LB VServer", logout=session_logout.ok)
 
         changed = True
         config = session.config_new(module, config_diff)
@@ -1182,23 +1216,27 @@ def change_config(session, module, proposed, existing):
         # raise error if servicetype, traffic domain, port, or ipv46 are different than current config
         if "servicetype" in config_diff:
             conflict = dict(existing_service_type=existing["servicetype"], proposed_service_type=proposed["servicetype"], partition=module.params["partition"])
+            session_logout = session.logout()
             module.fail_json(msg="Modifying the Service Type is not Supported. This can be achieved by first deleting the "
-                                 "LB VServer, and then creating a LB VServer with the changes.", conflict=conflict)
+                                 "LB VServer, and then creating a LB VServer with the changes.", conflict=conflict, logout=session_logout.ok)
 
         if "td" in config_diff:
             conflict = dict(existing_traffic_domain=existing["td"], proposed_traffic_domain=proposed["td"], partition=module.params["partition"])
+            session_logout = session.logout()
             module.fail_json(msg="Updating a LB VServer's Traffic Domain is not Supported. This can be achieved by first deleting the "
-                                 "LB VServer, and then creating a LB VServer with the changes.", conflict=conflict)
+                                 "LB VServer, and then creating a LB VServer with the changes.", conflict=conflict, logout=session_logout.ok)
 
         if "port" in config_diff:
             conflict = dict(existing_port=existing["port"], proposed_port=proposed["port"], partition=module.params["partition"])
+            session_logout = session.logout()
             module.fail_json(msg="Modifying the LB VServer's Port is not Supported. This can be achieved by first deleting the "
-                                 "LB VServer, and then creating a LB VServer with the changes.", conflict=conflict)
+                                 "LB VServer, and then creating a LB VServer with the changes.", conflict=conflict, logout=session_logout.ok)
 
         if "ipv46" in config_diff and not module.params["config_override"]:
             dup_dict = dict(name=proposed["name"], proposed_ip=proposed["ipv46"], existing_ip=existing["ipv46"], traffic_domain=proposed["td"],
                             partition=module.params["partition"])
-            module.fail_json(msg="Updating a LB VServer's IP Addresses requires setting the config_override param to True.", conflict=dup_dict)
+            session_logout = session.logout()
+            module.fail_json(msg="Updating a LB VServer's IP Addresses requires setting the config_override param to True.", conflict=dup_dict, logout=session_logout.ok)
 
         changed = True
         config = session.config_update(module, config_diff)
@@ -1206,7 +1244,7 @@ def change_config(session, module, proposed, existing):
     if rename:
         config.append(rename[0])
 
-    return {"changed": changed, "config": config, "existing": existing}
+    return dict(changed=changed, config=config, existing=existing)
 
 
 def delete_lbvserver(session, module, proposed_name, existing):
@@ -1229,7 +1267,7 @@ def delete_lbvserver(session, module, proposed_name, existing):
         changed = True
         config = session.config_delete(module, proposed_name)
 
-    return {"changed": changed, "config": config, "existing": existing}
+    return dict(changed=changed, config=config, existing=existing)
 
 
 if __name__ == "__main__":
