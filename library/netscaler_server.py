@@ -165,6 +165,11 @@ config:
     type: list
     sample: [{"method": "post", "url": "https://netscaler/nitro/v1/config/server",
     "body": {"name": "server01", "ipaddress": "10.10.10.10"}}]
+logout:
+    description: The result from closing the session with the Netscaler. True means successful logout; False means unsuccessful logout.
+    returned: always
+    type: bool
+    sample: True
 '''
 
 import requests
@@ -266,7 +271,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             url = self.url + self.api_endpoint + "/" + object_name
             config.append({"method": "delete", "url": url, "body": {}})
@@ -290,7 +296,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint, "body": new_config})
 
@@ -317,7 +324,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": rename_config})
             else:
-                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "?action=rename", "body": rename_config})
 
@@ -347,7 +355,8 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "post", "url": config_status.url, "body": {"name": update_config["name"]}})
                 else:
-                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json())
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 url = self.url + self.api_endpoint + "?action={}".format(config_state)
                 config.append({"method": "post", "url": url, "body": {"name": update_config["name"]}})
@@ -358,7 +367,8 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "put", "url": self.url, "body": update_config})
                 else:
-                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json())
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 config.append({"method": "put", "url": self.url, "body": update_config})
 
@@ -552,6 +562,17 @@ class Netscaler(object):
             self.session = session
 
         return login
+
+    def logout(self):
+        """
+        The logout method is used to close the established connection with the Netscaler device.
+        :return: The response from the logout request.
+        """
+        url = self.url + "logout"
+        body = {"logout": {}}
+        logout = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return logout
 
     def post_config(self, new_config):
         """
@@ -771,7 +792,8 @@ def main():
     if partition:
         session_switch = session.switch_partition(partition)
         if not session_switch.ok:
-            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json())
+            session_logout = session.logout()
+            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json(), logout=session_logout.ok)
 
     existing_attrs = args.keys()
     existing = session.get_existing_attrs(proposed["name"], existing_attrs)
@@ -780,6 +802,9 @@ def main():
         results = change_config(session, module, proposed, existing)
     else:
         results = delete_server(session, module, proposed["name"], existing)
+
+    session_logout = session.logout()
+    results["logout"] = session_logout.ok
 
     module.exit_json(**results)
 
@@ -812,7 +837,8 @@ def change_config(session, module, proposed, existing):
         if dup_server and not module.params["config_override"]:
             dup_dict = dict(proposed_name=proposed["name"], existing_name=dup_server["name"], ip_address=ip,
                             traffic_domain=td, partition=module.params["partition"])
-            module.fail_json(msg="Changing a Server's Name requires setting the config_override param to True.", conflict=dup_dict)
+            session_logout = session.logout()
+            module.fail_json(msg="Changing a Server's Name requires setting the config_override param to True.", conflict=dup_dict, logout=session_logout.ok)
         elif dup_server:
             changed = True
             rename = session.config_rename(module, dup_server["name"], proposed["name"])
@@ -826,13 +852,15 @@ def change_config(session, module, proposed, existing):
     elif config_method == "update":
         if "td" in config_diff:
             conflict = dict(existing_traffic_domain=existing["td"], proposed_traffic_domain=proposed["td"], partition=module.params["partition"])
+            session_logout = session.logout()
             module.fail_json(msg="Updating a Server's Traffic Domain is not Supported. This can be achieved by first deleting "
-                             "the Server, and then creating a Server with the changes.", conflict=conflict)
+                             "the Server, and then creating a Server with the changes.", conflict=conflict, logout=session_logout.ok)
 
         if "ipaddress" in config_diff and not module.params["config_override"]:
             dup_dict = dict(name=proposed["name"], proposed_ip=proposed["ipaddress"], existing_ip=existing["ipaddress"],
                             traffic_domain=proposed.get("td"), partition=module.params["partition"])
-            module.fail_json(msg="Updating a Server's IP Addresses requires setting the config_override param to True.", conflict=dup_dict)
+            session_logout = session.logout()
+            module.fail_json(msg="Updating a Server's IP Addresses requires setting the config_override param to True.", conflict=dup_dict, logout=session_logout.ok)
 
         changed = True
         config = session.config_update(module, config_diff)
@@ -840,7 +868,7 @@ def change_config(session, module, proposed, existing):
     if rename:
         config.append(rename[0])
 
-    return {"changed": changed, "config": config, "existing": existing}
+    return dict(changed=changed, config=config, existing=existing)
 
 
 def delete_server(session, module, proposed_name, existing):
@@ -862,7 +890,7 @@ def delete_server(session, module, proposed_name, existing):
         changed = True
         config = session.config_delete(module, proposed_name)
 
-    return {"changed": changed, "config": config, "existing": existing}
+    return dict(changed=changed, config=config, existing=existing)
 
 
 if __name__ == "__main__":

@@ -217,6 +217,11 @@ config:
     type: list
     sample:[{"method": "post", "url": "https://netscaler/nitro/v1/config/lbmonitor",
             "body": {"monitorname": "monitor_app02", "type": "TCP", "destport": 22, "state": "ENABLED"}}]
+logout:
+    description: The result from closing the session with the Netscaler. True means successful logout; False means unsuccessful logout.
+    returned: always
+    type: bool
+    sample: True
 '''
 
 
@@ -319,7 +324,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             url = self.url + self.api_endpoint + "/" + object_name
             config.append({"method": "delete", "url": url, "body": {}})
@@ -343,7 +349,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint, "body": new_config})
 
@@ -370,7 +377,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": rename_config})
             else:
-                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "?action=rename", "body": rename_config})
 
@@ -400,7 +408,8 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "post", "url": config_status.url, "body": {"name": update_config["name"]}})
                 else:
-                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json())
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 url = self.url + self.api_endpoint + "?action={}".format(config_state)
                 config.append({"method": "post", "url": url, "body": {"name": update_config["name"]}})
@@ -411,7 +420,8 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "put", "url": self.url, "body": update_config})
                 else:
-                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json())
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 config.append({"method": "put", "url": self.url, "body": update_config})
 
@@ -606,6 +616,17 @@ class Netscaler(object):
 
         return login
 
+    def logout(self):
+        """
+        The logout method is used to close the established connection with the Netscaler device.
+        :return: The response from the logout request.
+        """
+        url = self.url + "logout"
+        body = {"logout": {}}
+        logout = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return logout
+
     def post_config(self, new_config):
         """
         This method is used to submit a configuration request to the Netscaler using the Nitro API.
@@ -739,7 +760,8 @@ class LBMonitor(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             url = self.url + self.api_endpoint + "?args=monitorname:{},type:{}".format(object_name, monitor_type)
             config.append({"method": "delete", "url": url, "body": {}})
@@ -762,7 +784,8 @@ class LBMonitor(Netscaler):
             if config_status.ok:
                 config.append({"method": "put", "url": self.url, "body": update_config})
             else:
-                module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json())
+                logout = self.logout()
+                module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "put", "url": self.url, "body": update_config})
 
@@ -1038,7 +1061,8 @@ def main():
     if partition:
         session_switch = session.switch_partition(partition)
         if not session_switch.ok:
-            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json())
+            session_logout = session.logout()
+            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json(), logout=session_logout.ok)
 
     existing_attrs = args.keys()
     existing = session.get_existing_attrs(proposed["monitorname"], existing_attrs)
@@ -1047,6 +1071,9 @@ def main():
         results = change_config(session, module, proposed, existing, response_code_action)
     else:
         results = delete_lbmonitor(session, module, proposed["monitorname"], existing)
+
+    session_logout = session.logout()
+    results["logout"] = session_logout.ok
 
     return module.exit_json(**results)
 
@@ -1081,10 +1108,11 @@ def change_config(session, module, proposed, existing, respcode_action):
         config = session.config_update(module, config_diff)
     elif config_method == "mismatch":
         conflict = dict(existing_monitor_type=existing["type"], proposed__monitor_type=proposed["type"], partition=module.params["partition"])
+        session_logout = session.logout()
         module.fail_json(msg="Modifying the Monitor Type is not Supported. This can be achieved by first deleting "
-                             "the LB Monitor, and then creating a LB Monitor with the changes.", conflict=conflict)
+                             "the LB Monitor, and then creating a LB Monitor with the changes.", conflict=conflict, logout=session_logout.ok)
 
-    return {"changed": changed, "config": config, "existing": existing}
+    return dict(changed=changed, config=config, existing=existing)
 
 
 def delete_lbmonitor(session, module, proposed_name, existing):
@@ -1107,7 +1135,7 @@ def delete_lbmonitor(session, module, proposed_name, existing):
         changed = True
         config = session.config_delete(module, proposed_name, existing["type"])
 
-    return {"changed": changed, "config": config, "existing": existing}
+    return dict(changed=changed, config=config, existing=existing)
 
 
 if __name__ == "__main__":
