@@ -762,10 +762,10 @@ class LBVServer(Netscaler):
         port = proposed["port"]
 
         colliding_lbvserver_dict = {}
-        colliding_lbvserver = self.get_lbvserver_by_ip_td_port(ip_address, traffic_domain, port)
+        colliding_lbvserver = self.get_lbvserver_by_ip_td_servicetype(ip_address, traffic_domain, service_type)
 
-        if colliding_lbvserver:
-            colliding_lbvserver = self.get_lbvserver_by_ip_td_servicetype(ip_address, traffic_domain, service_type)
+        if not colliding_lbvserver:
+            colliding_lbvserver = self.get_lbvserver_by_ip_td_port(ip_address, traffic_domain, port)
 
         if colliding_lbvserver:
             colliding_lbvserver_dict["proposed_name"] = proposed["name"]
