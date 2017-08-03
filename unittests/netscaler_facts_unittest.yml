@@ -103,3 +103,12 @@
           gather_subset:
             - "config"
           config_scope: "true"
+
+      - name: GET CONFIG FACTS NO HOST - FAIL
+        netscaler_facts:
+          username: "{{ username }}"
+          password: "{{ password }}"
+          gather_subset:
+            - "config"
+          config_scope: "true"
+        ignore_errors: true

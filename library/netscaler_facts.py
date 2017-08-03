@@ -135,6 +135,11 @@ EXAMPLES = '''
 '''
 
 RETURN = '''
+logout:
+    description: The result from closing the session with the Netscaler. True means successful logout; False means unsuccessful logout.
+    returned: always
+    type: bool
+    sample: True
 ntc_system_data:
     description: The Netscaler's system data.
     returned: always
@@ -691,14 +696,32 @@ class Netscaler(object):
         self.verify = verify
         self.api_endpoint = api_endpoint
         self.headers = {"Content-Type": "application/json"}
-        self.port = kwargs.get("port", "")
+        if "port" not in kwargs:
+            self.port = ""
+        else:
+            self.port = ":{}".format(kwargs["port"])
 
         if use_ssl:
-            self.url = "https:{port}//{lb}/nitro/v1/config/".format(port=self.port, lb=self.host)
-            self.stat_url = "https:{port}//{lb}/nitro/v1/stat/".format(port=self.port, lb=self.host)
+            self.url = "https://{lb}{port}/nitro/v1/config/".format(lb=self.host, port=self.port)
+            self.stat_url = "https://{lb}{port}/nitro/v1/stat/".format(lb=self.host, port=self.port)
         else:
-            self.url = "http:{port}//{lb}/nitro/v1/config/".format(port=self.port, lb=self.host)
-            self.stat_url = "http:{port}//{lb}/nitro/v1/stat/".format(port=self.port, lb=self.host)
+            self.url = "http://{lb}{port}/nitro/v1/config/".format(lb=self.host, port=self.port)
+            self.stat_url = "http://{lb}{port}/nitro/v1/stat/".format(lb=self.host, port=self.port)
+
+    def change_name(self, existing_name, proposed_name):
+        """
+        The purpose of this method is to change the name of a server object.
+        :param existing_name: Type str.
+                              The name of the server object to be renamed.
+        :param proposed_name: Type str.
+                              The new name of the server object.
+        :return: The response from the request to delete the object.
+        """
+        url = self.url + self.api_endpoint + "?action=rename"
+        body = {self.api_endpoint: {"name": existing_name, "newname":proposed_name}}
+        response = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return response
 
     def change_state(self, object_name, state):
         """
@@ -733,7 +756,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                logout = self.logout()
+                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             url = self.url + self.api_endpoint + "/" + object_name
             config.append({"method": "delete", "url": url, "body": {}})
@@ -757,9 +781,38 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                logout = self.logout()
+                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint, "body": new_config})
+
+        return config
+
+    def config_rename(self, module, existing_name, proposed_name):
+        """
+        This method is used to handle the logic for Ansible modules when the "state" is set to "present" and the
+        proposed IP Address matches the IP Address of another Server in the same Traffic Domain. The change_name
+        method is used to post the configuration to the Netscaler.
+        :param module: The AnsibleModule instance started by the task.
+        :param existing_name: Type str.
+                              The current name of the Server object to be changed.
+        :param proposed_name: Type str.
+                              The name the Server object should be changed to.
+        :return: A list with config dictionary corresponding to the config returned by the Ansible module.
+        """
+        config = []
+
+        rename_config = {"name": existing_name, "newname": proposed_name}
+
+        if not module.check_mode:
+            config_status = self.change_name(existing_name, proposed_name)
+            if config_status.ok:
+                config.append({"method": "post", "url": config_status.url, "body": rename_config})
+            else:
+                logout = self.logout()
+                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json(), logout=logout.ok)
+        else:
+            config.append({"method": "post", "url": self.url + self.api_endpoint + "?action=rename", "body": rename_config})
 
         return config
 
@@ -787,7 +840,8 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "post", "url": config_status.url, "body": {"name": update_config["name"]}})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 url = self.url + self.api_endpoint + "?action={}".format(config_state)
                 config.append({"method": "post", "url": url, "body": {"name": update_config["name"]}})
@@ -798,7 +852,8 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "put", "url": self.url, "body": update_config})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 config.append({"method": "put", "url": self.url, "body": update_config})
 
@@ -993,6 +1048,17 @@ class Netscaler(object):
 
         return login
 
+    def logout(self):
+        """
+        The logout method is used to close the established connection with the Netscaler device.
+        :return: The response from the logout request.
+        """
+        url = self.url + "logout"
+        body = {"logout": {}}
+        logout = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return logout
+
     def post_config(self, new_config):
         """
         This method is used to submit a configuration request to the Netscaler using the Nitro API.
@@ -1078,19 +1144,20 @@ SUBSET_OPTIONS = SUBSET_INCLUDE + SUBSET_EXCLUDE
 
 def main():
     argument_spec = dict(
-        host=dict(required=True, type="str"),
+        host=dict(required=False, type="str"),
         port=dict(required=False, type="int"),
         username=dict(fallback=(env_fallback, ["ANSIBLE_NET_USERNAME"])),
         password=dict(fallback=(env_fallback, ["ANSIBLE_NET_PASSWORD"]), no_log=True),
-        use_ssl=dict(default=True, type="bool"),
-        validate_certs=dict(default=False, type="bool"),
+        use_ssl=dict(required=False, type="bool"),
+        validate_certs=dict(required=False, type="bool"),
         provider=dict(required=False, type="dict"),
         partition=dict(required=False, type="str"),
-        gather_subset=dict(required=False, type="list", default=["all"]),
-        config_scope=dict(choices=["true", "false"], required=False, type="str", default="false"),
+        gather_subset=dict(required=False, type="list"),
+        config_scope=dict(choices=["true", "false"], required=False, type="str"),
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=False)
+
     provider = module.params["provider"] or {}
 
     no_log = ["password"]
@@ -1108,10 +1175,26 @@ def main():
     password = module.params["password"]
     port = module.params["port"]
     use_ssl = module.params["use_ssl"]
+    if use_ssl is None:
+        use_ssl = True
     username = module.params["username"]
     validate_certs = module.params["validate_certs"]
+    if validate_certs is None:
+        validate_certs = False
     gather_subset = module.params["gather_subset"]
+    if not gather_subset:
+        gather_subset = ["all"]
+    elif isinstance(gather_subset, str):
+        gather_subset = [gather_subset]
     config_scope = module.params["config_scope"]
+    if not config_scope:
+        config_scope = "false"
+
+    # check for required values, this allows all values to be passed in provider
+    argument_check = dict(host=host)
+    for key, val in argument_check.items():
+        if not val:
+            module.fail_json(msg="The {} parameter is required".format(key))
 
     for subset in gather_subset:
         if subset not in SUBSET_OPTIONS:
@@ -1149,12 +1232,13 @@ def main():
     session = Netscaler(host, username, password, use_ssl, validate_certs, **kwargs)
     session_login = session.login()
     if not session_login.ok:
-        module.fail_json(msg="Unable to login")
+        module.fail_json(msg="Unable to Login", netscaler_response=session_login.json())
 
     if partition:
         session_switch = session.switch_partition(partition)
         if not session_switch.ok:
-            module.fail_json(msg=session_switch.content, reason="Unable to Switch Partitions")
+            session_logout = session.logout()
+            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json(), logout=session_logout.ok)
 
     ansible_facts = dict(ntc_system_data=get_system_data(session))
 
@@ -1181,6 +1265,9 @@ def main():
 
     if "monitor_config" in subset_list:
         ansible_facts["ntc_monitor_config"] = get_monitor_config(session)
+
+    session_logout = session.logout()
+    ansible_facts["logout"] = session_logout.ok
 
     return module.exit_json(**ansible_facts)
 

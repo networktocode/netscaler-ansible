@@ -13,7 +13,7 @@
           max_client: 20
           max_req: 100
           server_timeout: 300
-          service_type: "TCP"
+          service_type: "tcp"
           servicegroup_name: "servicegroup01"
 
       - name: CONFIG SERVICE GROUP AGAIN - NO CHANGE
@@ -80,7 +80,7 @@
           servicegroup_name: "servicegroup04"
           servicegroup_state: "disabled"
 
-      - name: ADD A MODIFY SERVICE GROUP PARAMS AND COMMENT - CHANGE
+      - name: MODIFY SERVICE GROUP PARAMS AND COMMENT - CHANGE
         netscaler_servicegroup:
           host: "{{ inventory_hostname }}"
           username: "{{ username }}"
@@ -126,6 +126,33 @@
           servicegroup_name: "servicegroup01"
           state: "absent"
 
+      - name: SET PROVIDER - NO CHANGE
+        set_fact:
+          provider:
+            host: "{{ inventory_hostname }}"
+            username: "{{ username }}"
+            password: "{{ password }}"
+            max_client: 20
+            max_req: 100
+            server_timeout: 300
+            service_type: "TCP"
+            servicegroup_name: "servicegroup04"
+            servicegroup_state: "disabled"
+
+      - name: CREATE SERVICE GROUP WITH PROVIDER - NO CHANGE
+        netscaler_servicegroup:
+          provider: "{{ provider }}"
+
+      - name: CREATE SERVICE GROUP OVERRIDE PROVIDER - CHANGE
+        netscaler_servicegroup:
+          provider: "{{ provider }}"
+          max_client: 25
+          max_req: 200
+          server_timeout: 400
+          service_type: "HTTP"
+          servicegroup_name: "servicegroup05"
+          servicegroup_state: "enabled"
+
       - name: CONFIG SERVICE GROUP WITHOUT A NAME - FAIL
         netscaler_servicegroup:
           host: "{{ inventory_hostname }}"
@@ -134,6 +161,33 @@
           service_type: "HTTP"
         ignore_errors: yes
         tags: no_name
+
+      - name: CONFIG SERVICE GROUP WITHOUT A HOST - FAIL
+        netscaler_servicegroup:
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "servicegroup10"
+          service_type: "HTTP"
+        ignore_errors: yes
+        tags: no_name
+
+      - name: MODIFY SERVICE GROUP IN TRAFFIC DOMAIN - FAIL
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "servicegroup03"
+          service_type: "HTTP"
+        ignore_errors: true
+
+      - name: MODIFY SERVICE GROUP IN TRAFFIC DOMAIN - FAIL
+        netscaler_servicegroup:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "servicegroup03"
+          traffic_domain: 0
+        ignore_errors: true
 
       - name: CONFIG SERVICE GROUP WITHOUT A SERVICE TYPE - FAIL
         netscaler_servicegroup:
@@ -202,10 +256,11 @@
           state: "absent"
           servicegroup_name: "{{ item }}"
         with_items:
-          - servicegroup01
-          - servicegroup02
-          - servicegroup03
-          - servicegroup04
+          - "servicegroup01"
+          - "servicegroup02"
+          - "servicegroup03"
+          - "servicegroup04"
+          - "servicegroup05"
         tags: cleanup
 
       - name: CLEANUP SERVICE GROUP IN PARTITION - CHANGE

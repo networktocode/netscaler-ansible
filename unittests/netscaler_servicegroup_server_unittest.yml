@@ -122,6 +122,56 @@
           partition: "LAB"
           state: "absent"
 
+      - name: SET PROIVDER - NO CHANGE
+        set_fact:
+          provider:
+            host: "{{ inventory_hostname }}"
+            username: "{{ username }}"
+            password: "{{ password }}"
+            server_name: "server02"
+            servicegroup_name: "servicegroup02"
+            server_port: 80
+            weight: "20"
+
+      - name: CREATE SERVICE GROUP TO SERVER BINDING WITH PROIVDER - NO CHANGE
+        netscaler_servicegroup_server:
+          provider: "{{ provider }}"
+
+      - name: CREATE SERVICE GROUP TO SERVER BINDING OVERRIDE PROIVDER - CHANGE
+        netscaler_servicegroup_server:
+          provider: "{{ provider }}"
+          server_name: "server02"
+          servicegroup_name: "servicegroup01"
+          server_port: 88
+          weight: "30"
+
+      - name: CREATE SERVICE GROUP TO SERVER BINDING NO HOST - FAIL
+        netscaler_servicegroup_server:
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          servicegroup_name: "servicegroup01"
+          server_port: 80
+        ignore_errors: yes
+
+      - name: CREATE SERVICE GROUP TO SERVER BINDING NO SERVER_NAME - FAIL
+        netscaler_servicegroup_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          servicegroup_name: "servicegroup01"
+          server_port: 80
+        ignore_errors: yes
+
+      - name: CREATE SERVICE GROUP TO SERVER BINDING NO SERVICEGROUP_NAME - FAIL
+        netscaler_servicegroup_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server01"
+          server_port: 80
+        ignore_errors: yes
+
       - name: CREATE SERVICE GROUP TO SERVER BINDING NO PORT - FAIL
         netscaler_servicegroup_server:
           host: "{{ inventory_hostname }}"
@@ -131,23 +181,26 @@
           servicegroup_name: "servicegroup01"
         ignore_errors: yes
 
-      - name: CREATE SERVICE GROUP TO SERVER BINDING NO SERVER NAME - FAIL
-        netscaler_servicegroup_server:
-          host: "{{ inventory_hostname }}"
-          username: "{{ username }}"
-          password: "{{ password }}"
-          servicegroup_name: "servicegroup01"
-          server_port: 80
-        ignore_errors: yes
-
-      - name: CREATE SERVICE GROUP TO SERVER BINDING NO SERVICE GROUP NAME - FAIL
+      - name: CREATE SERVICE GROUP TO SERVER BINDING INVALID PORT - FAIL
         netscaler_servicegroup_server:
           host: "{{ inventory_hostname }}"
           username: "{{ username }}"
           password: "{{ password }}"
           server_name: "server01"
-          server_port: 80
+          servicegroup_name: "servicegroup01"
+          server_port: "BAD"
         ignore_errors: yes
+
+      - name: MODIFY SERVICE GROUP TO SERVER BINDING WITH WEIGHT - FAIL
+        netscaler_servicegroup_server:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}"
+          server_name: "server02"
+          servicegroup_name: "servicegroup02"
+          server_port: 80
+          weight: "30"
+        ignore_errors: true
 
       - name: CREATE SERVICE GROUP TO SERVER BINDING SERVER DOES NOT EXIST - FAIL
         netscaler_servicegroup_server:
@@ -202,7 +255,9 @@
           - server: "server02"
             servicegroup: "servicegroup02"
             port: 80
-
+          - server: "server02"
+            servicegroup: "servicegroup01"
+            port: 88
 
 
   - name: PREPARE OBJECTS CLEANUP

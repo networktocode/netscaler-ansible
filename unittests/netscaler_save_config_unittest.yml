@@ -10,3 +10,9 @@
           host: "{{ inventory_hostname }}"
           username: "{{ username }}"
           password: "{{ password }}"
+
+      - name: SAVE NETSACLER RUNNING CONFIG NO HOST - FAIL
+        netscaler_save_config:
+          username: "{{ username }}"
+          password: "{{ password }}"
+        ignore_errors: true

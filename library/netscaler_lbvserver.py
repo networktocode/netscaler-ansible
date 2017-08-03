@@ -102,12 +102,21 @@ options:
       - A comment about the lbvserver
     required: false
     type: str
+  config_override:
+    description:
+      - Setting to True enables changing IP Addresses and Names
+      - If an LB VServer with a different name is configured with the same IP Address,
+        Traffic Domain, and Port, then the existing VServer will be renamed.
+      - If an LB VServer already exists with the same Name, but different IP Address,
+        then the existing VServer will have its IP Address updated.
+    required: false
+    type: bool
   conn_failover:
     description:
       - The lbvserver connection setting
     required: false
     type: str
-    choices: ["DISABLED", "STATEFUL", "STATELESS"]
+    choices: ["disabled", "stateful", "stateless"]
   cookie_name:
     description:
       - The name of the cookie to use.
@@ -122,9 +131,9 @@ options:
     description:
       - The method to load balance traffic.
     required: false
-    choices: ["ROUNDROBIN", "LEASTCONNECTION", "LEASTRESPONSETIME", "URLHASH", "DOMAINHASH", "DESTINATIONIPHASH",
-              "SOURCEIPHASH", "SRCIPDESTIPHASH", "LEASTBANDWIDTH", "LEASTPACKETS", "TOKEN", "SRCIPSRCPORTHASH",
-              "LRTM", "CALLIDHASH", "CUSTOMLOAD", "LEASTREQUEST", "AUDITLOGHASH", "STATICPROXIMITY"]
+    choices: ["roundrobin", "leastconnection", "leastresponsetime", "urlhash", "domainhash", "destinationiphash",
+              "sourceiphash", "srcipdestiphash", "leastbandwidth", "leastpackets", "token", "srcipsrcporthash",
+              "lrtm", "callidhash", "customload", "leastrequest", "auditloghash", "staticproximity"]
     type: str
   lbvserver_name:
     description:
@@ -143,7 +152,6 @@ options:
       - Disabled marks it out of service.
       - Enabled marks it serviceable.
     required: false
-    default: enabled
     type: str
     choices: ["disabled", "enabled"]
   persistence:
@@ -151,16 +159,16 @@ options:
       - The persistence type used by the lbvserver.
     required: false
     type: str
-    choices: ["SOURCEIP", "COOKIEINSERT", "SSLSESSION", "RULE", "URLPASSIVE", "CUSTOMSERVERID", "DESTIP",
-              "SRCIPDESTIP", "CALLID", "RTSPSID", "DIAMETER", "FIXSESSION", "NONE"]
+    choices: ["sourceip", "cookieinsert", "sslsession", "rule", "urlpassive", "customserverid", "destip",
+              "srcipdestip", "callid", "rtspsid", "diameter", "fixsession", "none"]
   service_type:
     description:
       - The type of service the lbvserver provides.
     required: false
     type: str
-    choices: ["HTTP", "FTP", "TCP", "UDP", "SSL", "SSL_BRIDGE", "SSL_TCP", "DTLS", "NNTP", "DNS", "DHCPRA", "ANY",
-              "SIP_UDP", "SIP_TCP", "SIP_SSL", "DNS_TCP", "RTSP", "PUSH", "SSL_PUSH", "RADIUS", "RDP", "MYSQL",
-              "MSSQL", "DIAMETER", "SSL_DIAMETER", "TFTP", "ORACLE", "SMPP", "SYSLOGTCP", "SYSLOGUDP", "FIX"]
+    choices: ["http", "ftp", "tcp", "udp", "ssl", "ssl_bridge", "ssl_tcp", "dtls", "nntp", "dns", "dhcpra", "any",
+              "sip_udp", "sip_tcp", "sip_ssl", "dns_tcp", "rtsp", "push", "ssl_push", "radius", "rdp", "mysql",
+              "mssql", "diameter", "ssl_diameter", "tftp", "oracle", "smpp", "syslogtcp", "syslogudp", "fix"]
   app_flow_log:
     description:
       - Enable logging of AppFlow information for the specified service group.
@@ -184,9 +192,9 @@ EXAMPLES = '''
     password: "{{ password }}"
     lbvserver_name: "lbvsvr_app01"
     ip_address: "10.10.10.21"
-    service_type: "ANY"
+    service_type: "any"
     lbvserver_port: "*"
-    lbmethod: "ROUNDROBIN"
+    lbmethod: "roundrobin"
 - name: Config Backup Lbvserver Object
   netscaler_lbvserver:
     host: : "{{ inventory_hostname }}"
@@ -196,7 +204,7 @@ EXAMPLES = '''
     ip_address: "0.0.0.0"
     service_type: "SSL"
     lbvserver_port: "0"
-    persistence: "COOKIEINSERT"
+    persistence: "cookieinsert"
     cookie_name: "choc_chip"
     partition: "Lab"
     port: 8080
@@ -210,7 +218,7 @@ EXAMPLES = '''
     backup_lbvserver: "lbvsvr_app02_backup"
     ip_address: "10.10.10.22"
     lbvserver_port: "443"
-    persistence: "COOKIEINSERT"
+    persistence: "cookieinsert"
     cookie_name: "choc_chip"
     partition: "Lab"
     use_ssl: False
@@ -241,6 +249,11 @@ config:
     sample: [{"method": "post", "url": "https://netscaler/nitro/v1/config/lbvserver?action=disable",
               "body": {}},{"method": "put", "url": "https://10.1.100.121/nitro/v1/config/"
               "body": {"comment": "Temp Disable", "name": "test"}}]
+logout:
+    description: The result from closing the session with the Netscaler. True means successful logout; False means unsuccessful logout.
+    returned: always
+    type: bool
+    sample: True
 '''
 
 
@@ -283,14 +296,32 @@ class Netscaler(object):
         self.verify = verify
         self.api_endpoint = api_endpoint
         self.headers = {"Content-Type": "application/json"}
-        self.port = kwargs.get("port", "")
+        if "port" not in kwargs:
+            self.port = ""
+        else:
+            self.port = ":{}".format(kwargs["port"])
 
         if use_ssl:
-            self.url = "https:{port}//{lb}/nitro/v1/config/".format(port=self.port, lb=self.host)
-            self.stat_url = "https:{port}//{lb}/nitro/v1/stat/".format(port=self.port, lb=self.host)
+            self.url = "https://{lb}{port}/nitro/v1/config/".format(lb=self.host, port=self.port)
+            self.stat_url = "https://{lb}{port}/nitro/v1/stat/".format(lb=self.host, port=self.port)
         else:
-            self.url = "http:{port}//{lb}/nitro/v1/config/".format(port=self.port, lb=self.host)
-            self.stat_url = "http:{port}//{lb}/nitro/v1/stat/".format(port=self.port, lb=self.host)
+            self.url = "http://{lb}{port}/nitro/v1/config/".format(lb=self.host, port=self.port)
+            self.stat_url = "http://{lb}{port}/nitro/v1/stat/".format(lb=self.host, port=self.port)
+
+    def change_name(self, existing_name, proposed_name):
+        """
+        The purpose of this method is to change the name of a server object.
+        :param existing_name: Type str.
+                              The name of the server object to be renamed.
+        :param proposed_name: Type str.
+                              The new name of the server object.
+        :return: The response from the request to delete the object.
+        """
+        url = self.url + self.api_endpoint + "?action=rename"
+        body = {self.api_endpoint: {"name": existing_name, "newname":proposed_name}}
+        response = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return response
 
     def change_state(self, object_name, state):
         """
@@ -325,7 +356,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                logout = self.logout()
+                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             url = self.url + self.api_endpoint + "/" + object_name
             config.append({"method": "delete", "url": url, "body": {}})
@@ -349,9 +381,38 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                logout = self.logout()
+                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint, "body": new_config})
+
+        return config
+
+    def config_rename(self, module, existing_name, proposed_name):
+        """
+        This method is used to handle the logic for Ansible modules when the "state" is set to "present" and the
+        proposed IP Address matches the IP Address of another Server in the same Traffic Domain. The change_name
+        method is used to post the configuration to the Netscaler.
+        :param module: The AnsibleModule instance started by the task.
+        :param existing_name: Type str.
+                              The current name of the Server object to be changed.
+        :param proposed_name: Type str.
+                              The name the Server object should be changed to.
+        :return: A list with config dictionary corresponding to the config returned by the Ansible module.
+        """
+        config = []
+
+        rename_config = {"name": existing_name, "newname": proposed_name}
+
+        if not module.check_mode:
+            config_status = self.change_name(existing_name, proposed_name)
+            if config_status.ok:
+                config.append({"method": "post", "url": config_status.url, "body": rename_config})
+            else:
+                logout = self.logout()
+                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json(), logout=logout.ok)
+        else:
+            config.append({"method": "post", "url": self.url + self.api_endpoint + "?action=rename", "body": rename_config})
 
         return config
 
@@ -379,7 +440,8 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "post", "url": config_status.url, "body": {"name": update_config["name"]}})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 url = self.url + self.api_endpoint + "?action={}".format(config_state)
                 config.append({"method": "post", "url": url, "body": {"name": update_config["name"]}})
@@ -390,7 +452,8 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "put", "url": self.url, "body": update_config})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 config.append({"method": "put", "url": self.url, "body": update_config})
 
@@ -585,6 +648,17 @@ class Netscaler(object):
 
         return login
 
+    def logout(self):
+        """
+        The logout method is used to close the established connection with the Netscaler device.
+        :return: The response from the logout request.
+        """
+        url = self.url + "logout"
+        body = {"logout": {}}
+        logout = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return logout
+
     def post_config(self, new_config):
         """
         This method is used to submit a configuration request to the Netscaler using the Nitro API.
@@ -687,7 +761,8 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                logout = self.logout()
+                module.fail_json(msg="Unable to Bind Cert Key", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + "sslvserver_sslcertkey_binding", "body": new_config})
 
@@ -710,7 +785,8 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                logout = self.logout()
+                module.fail_json(msg="Unable to Bind Service Group", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "_servicegroup_binding",
                            "body": new_config})
@@ -744,38 +820,6 @@ class LBVServer(Netscaler):
         response = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
 
         return response
-
-    def check_duplicate_ip_port_service(self, proposed):
-        """
-        The purpose of this method is to identify if the proposed lbvserver has either an "ipv46" and "servicetype" or
-        an "ipv46" and "port" value combination that already exists in the current partition and traffic domain. This
-        should be used to prevent an invalid API request since each lbvserver "ipv46" must not reuse either
-        "servicetype" or "port" values.
-        :param proposed: Type dict.
-                         The proposed lbvserver configuration.
-        :return: A dictionary with the information about colliding lbvserver. An empty dictionary is returned if all
-                 combinations are unique.
-        """
-        ip_address = proposed["ipv46"]
-        traffic_domain = proposed["td"]
-        service_type = proposed["servicetype"]
-        port = proposed["port"]
-
-        colliding_lbvserver_dict = {}
-        colliding_lbvserver = self.get_lbvserver_by_ip_td_servicetype(ip_address, traffic_domain, service_type)
-
-        if not colliding_lbvserver:
-            colliding_lbvserver = self.get_lbvserver_by_ip_td_port(ip_address, traffic_domain, port)
-
-        if colliding_lbvserver:
-            colliding_lbvserver_dict["proposed_name"] = proposed["name"]
-            colliding_lbvserver_dict["existing_name"] = colliding_lbvserver["name"]
-            colliding_lbvserver_dict["ip_address"] = ip_address
-            colliding_lbvserver_dict["traffic_domain"] = traffic_domain
-            colliding_lbvserver_dict["existing_service"] = colliding_lbvserver["servicetype"]
-            colliding_lbvserver_dict["existing_port"] = colliding_lbvserver["port"]
-
-        return colliding_lbvserver_dict
 
     def get_all(self):
         """
@@ -817,26 +861,6 @@ class LBVServer(Netscaler):
         response = self.session.get(url, headers=self.headers, verify=self.verify)
 
         return response.json().get("sslvserver_sslcertkey_binding", [])
-
-    def get_lbvserver_by_ip_td_servicetype(self, ip_address, traffic_domain, service_type):
-        """
-        This method is used to collect the config of a server with an identical "ipv46," "td," and "port" as the
-        proposed lbvserver.
-        :param ip_address: Type str.
-                           The proposed "ipaddress" value.
-        :param traffic_domain: Type str.
-                               The proposed "td" value.
-        :param service_type: Type str.
-                             The proposed "servicetype" value.
-        :return: A dictionary of the server configuration. If the server is unique, then an empty dictionary is
-                 returned.
-        """
-        url = self.url + self.api_endpoint + "?filter=ipv46:{},td:{},servicetype:{}".format(
-            ip_address, traffic_domain, service_type
-        )
-        response = self.session.get(url, headers=self.headers, verify=self.verify)
-
-        return response.json().get("lbvserver", [{}])[0]
 
     def get_lbvserver_by_ip_td_port(self, ip_address, traffic_domain, port):
         """
@@ -888,7 +912,8 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                logout = self.logout()
+                module.fail_json(msg="Unable to Remove Cert Key Binding", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             args_list = new_config.items()
             args = "?args="
@@ -919,7 +944,8 @@ class LBVServer(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                logout = self.logout()
+                module.fail_json(msg="Unable to Remove Service Group Binding", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             url = self.url + self.api_endpoint + "_servicegroup_binding?args=name:{},servicegroupnaname:{}".format(
                 new_config["name"], new_config["servicegroupname"])
@@ -969,39 +995,48 @@ class LBVServer(Netscaler):
 VALID_SERVICETYPES = ["HTTP", "FTP", "TCP", "UDP", "SSL", "SSL_BRIDGE", "SSL_TCP", "DTLS", "NNTP", "DNS", "DHCPRA",
                       "ANY", "SIP_UDP", "SIP_TCP", "SIP_SSL", "DNS_TCP", "RTSP", "PUSH", "SSL_PUSH", "RADIUS", "RDP",
                       "MYSQL", "MSSQL", "DIAMETER", "SSL_DIAMETER", "TFTP", "ORACLE", "SMPP", "SYSLOGTCP", "SYSLOGUDP",
-                      "FIX"]
+                      "FIX", "http", "ftp", "tcp", "udp", "ssl", "ssl_bridge", "ssl_tcp", "dtls", "nntp", "dns", "dhcpra",
+                      "any", "sip_udp", "sip_tcp", "sip_ssl", "dns_tcp", "rtsp", "push", "ssl_push", "radius", "rdp",
+                      "mysql", "mssql", "diameter", "ssl_diameter", "tftp", "oracle", "smpp", "syslogtcp", "syslogudp",
+                      "fix"]
 VALID_LBMETHODS = ["ROUNDROBIN", "LEASTCONNECTION", "LEASTRESPONSETIME", "URLHASH", "DOMAINHASH", "DESTINATIONIPHASH",
                    "SOURCEIPHASH", "SRCIPDESTIPHASH", "LEASTBANDWIDTH", "LEASTPACKETS", "TOKEN", "SRCIPSRCPORTHASH",
-                   "LRTM", "CALLIDHASH", "CUSTOMLOAD", "LEASTREQUEST", "AUDITLOGHASH", "STATICPROXIMITY"]
+                   "LRTM", "CALLIDHASH", "CUSTOMLOAD", "LEASTREQUEST", "AUDITLOGHASH", "STATICPROXIMITY", "roundrobin",
+                   "leastconnection", "leastresponsetime", "urlhash", "domainhash", "destinationiphash", "sourceiphash",
+                   "srcipdestiphash", "leastbandwidth", "leastpackets", "token", "srcipsrcporthash", "lrtm", "callidhash",
+                   "customload", "leastrequest", "auditloghash", "staticproximity"]
 VALID_PERSISTENCE_TYPES = ["SOURCEIP", "COOKIEINSERT", "SSLSESSION", "RULE", "URLPASSIVE", "CUSTOMSERVERID", "DESTIP",
-                           "SRCIPDESTIP", "CALLID", "RTSPSID", "DIAMETER", "FIXSESSION", "NONE"]
-
+                           "SRCIPDESTIP", "CALLID", "RTSPSID", "DIAMETER", "FIXSESSION", "NONE", "sourceip", "cookieinsert",
+                           "sslsession", "rule", "urlpassive", "customserverid", "destip", "srcipdestip", "callid", "rtspsid",
+                           "diameter", "fixsession", "none"]
+VALID_CONN_FAILOVER = ["DISABLED", "STATEFUL", "STATELESS", "disabled", "stateful", "stateless"]
 
 def main():
     argument_spec = dict(
-        host=dict(required=True, type="str"),
+        host=dict(required=False, type="str"),
         port=dict(required=False, type="int"),
         username=dict(fallback=(env_fallback, ["ANSIBLE_NET_USERNAME"])),
         password=dict(fallback=(env_fallback, ["ANSIBLE_NET_PASSWORD"]), no_log=True),
-        use_ssl=dict(default=True, type="bool"),
-        validate_certs=dict(default=False, type="bool"),
+        use_ssl=dict(required=False, type="bool"),
+        validate_certs=dict(required=False, type="bool"),
         provider=dict(required=False, type="dict"),
-        state=dict(choices=["absent", "present"], default="present", type="str"),
+        state=dict(choices=["absent", "present"], type="str"),
         partition=dict(required=False, type="str"),
         backup_lbvserver=dict(required=False, type="str"),
         client_timeout=dict(required=False, type="str"),
         comment=dict(required=False, type="str"),
-        conn_failover=dict(choices=["DISABLED", "STATEFUL", "STATELESS"], required=False, type="str"),
+        config_override=dict(choices=[True, False], type="bool"),
+        conn_failover=dict(choices=VALID_CONN_FAILOVER, required=False, type="str"),
         cookie_name=dict(required=False, type="str"),
         ip_address=dict(required=False, type="str"),
         lbmethod=dict(choices=VALID_LBMETHODS, required=False, type="str"),
-        lbvserver_name=dict(required=True, type="str"),
+        lbvserver_name=dict(required=False, type="str"),
         lbvserver_port=dict(required=False, type="str"),
-        lbvserver_state=dict(choices=["disabled", "enabled"], required=False, type="str", default="enabled"),
+        lbvserver_state=dict(choices=["disabled", "enabled"], required=False, type="str"),
         persistence=dict(choices=VALID_PERSISTENCE_TYPES, required=False, type="str"),
         service_type=dict(choices=VALID_SERVICETYPES, required=False, type="str"),
         app_flow_log=dict(choices=["ENABLED", "DISABLED"], required=False, type="str", default="ENABLED"),
-        traffic_domain=dict(required=False, type="str", default="0"),
+        traffic_domain=dict(required=False, type="str", default="0")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -1016,32 +1051,71 @@ def main():
     for param, pvalue in provider.items():
         if module.params.get(param) is None:
             module.params[param] = pvalue
-            
+
+    # module specific args that can be represented as both str or int are normalized to Netscaler's representation for diff comparison in case provider is used 
     host = module.params["host"]
     partition = module.params["partition"]
     password = module.params["password"]
     port = module.params["port"]
     state = module.params["state"]
+    if not state:
+        state = "present"
     use_ssl = module.params["use_ssl"]
+    if use_ssl is None:
+        use_ssl = True
     username = module.params["username"]
     validate_certs = module.params["validate_certs"]
+    if validate_certs is None:
+        validate_certs = False
+    client_timeout = module.params["client_timeout"]
+    if client_timeout:
+        client_timeout = str(client_timeout)
+    conn_failover = module.params["conn_failover"]
+    if conn_failover:
+        conn_failover = conn_failover.upper()
+    lb_method = module.params["lbmethod"]
+    if lb_method:
+        lb_method = lb_method.upper()
+    lbvserver_port = module.params["lbvserver_port"]
+    if lbvserver_port:
+        lbvserver_port = str(lbvserver_port)
+    lbvserver_state = module.params["lbvserver_state"]
+    if lbvserver_state:
+        lbvserver_state = lbvserver_state.upper()
+    persistence = module.params["persistence"]
+    if persistence:
+        persistence = persistence.upper()
+    service_type = module.params["service_type"]
+    if service_type:
+        service_type = service_type.upper()
+    traffic_domain = module.params["traffic_domain"]
+    if traffic_domain:
+        traffic_domain = str(traffic_domain)
+    else:
+        traffic_domain = "0"
 
     args = dict(
         backupvserver=module.params["backup_lbvserver"],
-        clttimeout=module.params["client_timeout"],
+        clttimeout=client_timeout,
         comment=module.params["comment"],
-        connfailover=module.params["conn_failover"],
+        connfailover=conn_failover,
         cookiename=module.params["cookie_name"],
         ipv46=module.params["ip_address"],
-        lbmethod=module.params["lbmethod"],
+        lbmethod=lb_method,
         name=module.params["lbvserver_name"],
-        port=module.params["lbvserver_port"],
-        state=module.params["lbvserver_state"].upper(),
-        persistencetype=module.params["persistence"],
-        servicetype=module.params["service_type"],
+        port=lbvserver_port,
+        state=lbvserver_state,
+        persistencetype=persistence,
+        servicetype=service_type,
         appflowlog=module.params["app_flow_log"],
-        td=module.params["traffic_domain"]
+        td=traffic_domain
     )
+
+    # check for required values, this allows all values to be passed in provider
+    argument_check = dict(host=host, lbvserver_name=args["name"])
+    for key, val in argument_check.items():
+        if not val:
+            module.fail_json(msg="The {} parameter is required".format(key))
 
     # "if isinstance(v, bool) or v" should be used if a bool variable is added to args
     proposed = dict((k, v) for k, v in args.items() if v)
@@ -1049,7 +1123,7 @@ def main():
     if "port" in proposed:
         if proposed["port"] == "*":
             if proposed["servicetype"] != "ANY":
-                module.fail_json(msg="'*'' can only be used with a service_type of 'ANY'")
+                module.fail_json(msg="'*' can only be used with a service_type of 'ANY'")
             else:
                 proposed["port"] = 65535
         else:
@@ -1065,12 +1139,13 @@ def main():
     session = LBVServer(host, username, password, use_ssl, validate_certs, **kwargs)
     session_login = session.login()
     if not session_login.ok:
-        module.fail_json(msg="Unable to login")
+        module.fail_json(msg="Unable to Login", netscaler_response=session_login.json())
 
     if partition:
         session_switch = session.switch_partition(partition)
         if not session_switch.ok:
-            module.fail_json(msg=session_switch.content, reason="Unable to Switch Partitions")
+            session_logout = session.logout()
+            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json(), logout=session_logout.ok)
 
     existing_attrs = args.keys()
     existing = session.get_existing_attrs(proposed["name"], existing_attrs)
@@ -1079,6 +1154,9 @@ def main():
         results = change_config(session, module, proposed, existing)
     else:
         results = delete_lbvserver(session, module, proposed["name"], existing)
+
+    session_logout = session.logout()
+    results["logout"] = session_logout.ok
 
     return module.exit_json(**results)
 
@@ -1103,44 +1181,79 @@ def change_config(session, module, proposed, existing):
     """
     changed = False
     config = []
+    rename = []
 
     config_method, config_diff = session.get_diff(proposed, existing)
-
+    # check for duplicate lbvserver only if object is a primary vserver
+    if "ipv46" in config_diff and config_diff["ipv46"] != "0.0.0.0" and "port" in config_diff:
+        dup_lbvserver = session.get_lbvserver_by_ip_td_port(proposed["ipv46"], proposed["td"], proposed["port"])
+        if dup_lbvserver and not module.params["config_override"]:
+            dup_dict = dict(
+                proposed_name=proposed["name"], existing_name=dup_lbvserver["name"], ip_address=dup_lbvserver["ipv46"],
+                traffic_domain=dup_lbvserver["td"], service_type=dup_lbvserver["servicetype"], port=dup_lbvserver["port"],
+                partition=module.params["partition"]
+            )
+            session_logout = session.logout()
+            module.fail_json(msg="Changing a LB VServer's Name requires setting the config_override param to True:.", conflict=dup_dict, logout=session_logout.ok)
+        elif dup_lbvserver:
+           changed = True
+           rename = session.config_rename(module, dup_lbvserver["name"], proposed["name"])
+           new_existing = session.get_existing_attrs(proposed["name"], proposed.keys())
+           config_method, config_diff = LBVServer.get_diff(proposed, new_existing)
+    
     if config_method == "new":
-        # check for duplicate IPs only if object is a primary vserver
+        # raise error if new primary lbvserver does not include proper port and servicetype configurations
         if "ipv46" in config_diff and config_diff["ipv46"] != "0.0.0.0":
             if "port" not in config_diff or "servicetype" not in config_diff:
-                module.fail_json(msg="The port and service type must be specified for a new primary lbvserver.")
+                session_logout = session.logout()
+                module.fail_json(msg="The Port and Service Type must be specified when creating a new Primary LB VServer.", logout=session_logout.ok)
             elif config_diff["port"] == 0:
-                module.fail_json(msg="A port value of 0 is only supported with an ip_address of '0.0.0.0'")
-            else:
-                dup_lbvserver_check = session.check_duplicate_ip_port_service(proposed)
-                if dup_lbvserver_check:
-                    module.fail_json(msg="Unique names correspond to the same LBVServer:\n{}".format(dup_lbvserver_check))
-        elif "ipv46" in config_diff and config_diff["port"] != 0:
-            module.fail_json(msg="An ip_address value of '0.0.0.0' only supports a port of 0")
-        
+                session_logout = session.logout()
+                module.fail_json(msg="A Port value of 0 is only supported with an IP Address of '0.0.0.0'", logout=session_logout.ok)
+        # raise error if new backup lbvserver has set the port to a value other than 0
+        elif "ipv46" in config_diff and config_diff.get("port") != 0:
+            session_logout = session.logout()
+            module.fail_json(msg="An IP Address value of '0.0.0.0' only supports a Port of 0", logout=session_logout.ok)
+        elif "ipv46" not in config_diff and config_diff.get("port", 0) != 0:
+            session_logout = session.logout()
+            module.fail_json(msg="The IP Address must be specified when creating a new Primary LB VServer", logout=session_logout.ok)
+
         changed = True
         config = session.config_new(module, config_diff)
 
     elif config_method == "update":
         # raise error if servicetype, traffic domain, port, or ipv46 are different than current config
         if "servicetype" in config_diff:
-            module.fail_json(msg="Modifying the Service Type is not Supported")
+            conflict = dict(existing_service_type=existing["servicetype"], proposed_service_type=proposed["servicetype"], partition=module.params["partition"])
+            session_logout = session.logout()
+            module.fail_json(msg="Modifying the Service Type is not Supported. This can be achieved by first deleting the "
+                                 "LB VServer, and then creating a LB VServer with the changes.", conflict=conflict, logout=session_logout.ok)
 
         if "td" in config_diff:
-            module.fail_json(msg="Updating a VServer's Traffic Domain is not Supported")
+            conflict = dict(existing_traffic_domain=existing["td"], proposed_traffic_domain=proposed["td"], partition=module.params["partition"])
+            session_logout = session.logout()
+            module.fail_json(msg="Updating a LB VServer's Traffic Domain is not Supported. This can be achieved by first deleting the "
+                                 "LB VServer, and then creating a LB VServer with the changes.", conflict=conflict, logout=session_logout.ok)
 
         if "port" in config_diff:
-            module.fail_json(msg="Modifying the VServer's Port is not Supported")
+            conflict = dict(existing_port=existing["port"], proposed_port=proposed["port"], partition=module.params["partition"])
+            session_logout = session.logout()
+            module.fail_json(msg="Modifying the LB VServer's Port is not Supported. This can be achieved by first deleting the "
+                                 "LB VServer, and then creating a LB VServer with the changes.", conflict=conflict, logout=session_logout.ok)
 
-        if "ipv46" in config_diff:
-            module.fail_json(msg="Changing the IP Address is not Supported")
+        if "ipv46" in config_diff and not module.params["config_override"]:
+            dup_dict = dict(name=proposed["name"], proposed_ip=proposed["ipv46"], existing_ip=existing["ipv46"], traffic_domain=proposed["td"],
+                            partition=module.params["partition"])
+            session_logout = session.logout()
+            module.fail_json(msg="Updating a LB VServer's IP Addresses requires setting the config_override param to True.", conflict=dup_dict, logout=session_logout.ok)
 
         changed = True
         config = session.config_update(module, config_diff)
 
-    return {"changed": changed, "config": config, "existing": existing}
+    if rename:
+        config.append(rename[0])
+
+    return dict(changed=changed, config=config, existing=existing)
 
 
 def delete_lbvserver(session, module, proposed_name, existing):
@@ -1163,7 +1276,7 @@ def delete_lbvserver(session, module, proposed_name, existing):
         changed = True
         config = session.config_delete(module, proposed_name)
 
-    return {"changed": changed, "config": config, "existing": existing}
+    return dict(changed=changed, config=config, existing=existing)
 
 
 if __name__ == "__main__":

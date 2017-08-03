@@ -147,6 +147,11 @@ existing:
     returned: always
     type: dict
     sample: {"server_name": "server02", "servicegroupname": "svcgrp_app01"}
+logout:
+    description: The result from closing the session with the Netscaler. True means successful logout; False means unsuccessful logout.
+    returned: always
+    type: bool
+    sample: True
 '''
 
 
@@ -189,14 +194,32 @@ class Netscaler(object):
         self.verify = verify
         self.api_endpoint = api_endpoint
         self.headers = {"Content-Type": "application/json"}
-        self.port = kwargs.get("port", "")
+        if "port" not in kwargs:
+            self.port = ""
+        else:
+            self.port = ":{}".format(kwargs["port"])
 
         if use_ssl:
-            self.url = "https:{port}//{lb}/nitro/v1/config/".format(port=self.port, lb=self.host)
-            self.stat_url = "https:{port}//{lb}/nitro/v1/stat/".format(port=self.port, lb=self.host)
+            self.url = "https://{lb}{port}/nitro/v1/config/".format(lb=self.host, port=self.port)
+            self.stat_url = "https://{lb}{port}/nitro/v1/stat/".format(lb=self.host, port=self.port)
         else:
-            self.url = "http:{port}//{lb}/nitro/v1/config/".format(port=self.port, lb=self.host)
-            self.stat_url = "http:{port}//{lb}/nitro/v1/stat/".format(port=self.port, lb=self.host)
+            self.url = "http://{lb}{port}/nitro/v1/config/".format(lb=self.host, port=self.port)
+            self.stat_url = "http://{lb}{port}/nitro/v1/stat/".format(lb=self.host, port=self.port)
+
+    def change_name(self, existing_name, proposed_name):
+        """
+        The purpose of this method is to change the name of a server object.
+        :param existing_name: Type str.
+                              The name of the server object to be renamed.
+        :param proposed_name: Type str.
+                              The new name of the server object.
+        :return: The response from the request to delete the object.
+        """
+        url = self.url + self.api_endpoint + "?action=rename"
+        body = {self.api_endpoint: {"name": existing_name, "newname":proposed_name}}
+        response = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return response
 
     def change_state(self, object_name, state):
         """
@@ -231,7 +254,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                logout = self.logout()
+                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             url = self.url + self.api_endpoint + "/" + object_name
             config.append({"method": "delete", "url": url, "body": {}})
@@ -255,9 +279,38 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                logout = self.logout()
+                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint, "body": new_config})
+
+        return config
+
+    def config_rename(self, module, existing_name, proposed_name):
+        """
+        This method is used to handle the logic for Ansible modules when the "state" is set to "present" and the
+        proposed IP Address matches the IP Address of another Server in the same Traffic Domain. The change_name
+        method is used to post the configuration to the Netscaler.
+        :param module: The AnsibleModule instance started by the task.
+        :param existing_name: Type str.
+                              The current name of the Server object to be changed.
+        :param proposed_name: Type str.
+                              The name the Server object should be changed to.
+        :return: A list with config dictionary corresponding to the config returned by the Ansible module.
+        """
+        config = []
+
+        rename_config = {"name": existing_name, "newname": proposed_name}
+
+        if not module.check_mode:
+            config_status = self.change_name(existing_name, proposed_name)
+            if config_status.ok:
+                config.append({"method": "post", "url": config_status.url, "body": rename_config})
+            else:
+                logout = self.logout()
+                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json(), logout=logout.ok)
+        else:
+            config.append({"method": "post", "url": self.url + self.api_endpoint + "?action=rename", "body": rename_config})
 
         return config
 
@@ -285,7 +338,8 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "post", "url": config_status.url, "body": {"name": update_config["name"]}})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 url = self.url + self.api_endpoint + "?action={}".format(config_state)
                 config.append({"method": "post", "url": url, "body": {"name": update_config["name"]}})
@@ -296,7 +350,8 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "put", "url": self.url, "body": update_config})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 config.append({"method": "put", "url": self.url, "body": update_config})
 
@@ -491,6 +546,17 @@ class Netscaler(object):
 
         return login
 
+    def logout(self):
+        """
+        The logout method is used to close the established connection with the Netscaler device.
+        :return: The response from the logout request.
+        """
+        url = self.url + "logout"
+        body = {"logout": {}}
+        logout = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return logout
+
     def post_config(self, new_config):
         """
         This method is used to submit a configuration request to the Netscaler using the Nitro API.
@@ -587,16 +653,35 @@ class ServiceGroup(Netscaler):
         :return: The config dict corresponding to the config returned by the Ansible module.
         """
         config = []
+        config_state = new_config.pop("state", "ENABLED")[:-1].lower()
 
         if not module.check_mode:
             config_status = self.bind_server(new_config)
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                logout = self.logout()
+                module.fail_json(msg="Unable to Add New Monitor Binding", netscaler_response=config_status.json(), logout=logout.ok)
+
+            if config_state == "disable":
+                config_status = self.change_monitor_state(new_config["servicegroupname"],
+                                new_config["monitor_name"], config_state)
+                if config_status.ok:
+                    config.append({"method": "post", "url": config_status.url,
+                                   "body": {"servicegroupname": new_config["servicegroupname"],
+                                   "monitorname": new_config["monitor_name"]}})
+                else:
+                    logout = self.logout()
+                    module.fail_json(msg="Added New Monitor Binding, but Unable to Disable New Binding", netscaler_response=config_status.json(), logout=logout.ok)
+
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "_lbmonitor_binding",
                            "body": new_config})
+
+            if config_state == "disable":
+                config.append({"method": "post", "url": self.url + "lbmonitor?action=disable",
+                               "body": {"servicegroupname": new_config["servicegroupname"],
+                               "monitorname": new_config["monitor_name"]}})
 
         return config
 
@@ -617,7 +702,8 @@ class ServiceGroup(Netscaler):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                logout = self.logout()
+                module.fail_json(msg="Unable to Bind Server", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint + "_servicegroupmember_binding",
                            "body": new_config})
@@ -651,13 +737,31 @@ class ServiceGroup(Netscaler):
         response = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
 
         return response
+    
+    def change_monitor_state(self, servicegroup_name, monitor_name, state):
+        """
+        The purpose of this method is to change the state of a monitor bound to a servicegroup object from either
+        disabled to enabled, or enabled to disabled.
+        :param servicegroup_name: Type str.
+                                  The name of the servicegroup object to have its montor's state changed.
+        :param monitor_name: Type str.
+                             The name of the lbmonitor object to have its state changed.
+        :param state: Type str.
+                      The state the object should be in after execution. Valid values are "enable" or "disable"
+        :return: The response from the request to delete the object.
+        """
+        url = self.url + "lbmonitor?action={}".format(state)
+        body = {"lbmonitor": {"servicegroupname": servicegroup_name, "monitorname": monitor_name}}
+        response = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return response
 
     def change_state(self, object_name, state):
         """
         The purpose of this method is to change the state of a servicegroup object from either disabled to enabled, or
         enabled to disabled.
         :param object_name: Type str.
-                            The name of the servicegroup object to be deleted.
+                            The name of the servicegroup object to have its state changed.
         :param state: Type str.
                       The state the object should be in after execution. Valid values are "enable" or "disable"
         :return: The response from the request to delete the object.
@@ -692,7 +796,8 @@ class ServiceGroup(Netscaler):
                     config.append({"method": "post", "url": config_status.url,
                                    "body": {"servicegroupname": update_config["servicegroupname"]}})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 url = self.url + self.api_endpoint + "?action={}".format(config_state)
                 config.append({"method": "post", "url": url,
@@ -704,9 +809,51 @@ class ServiceGroup(Netscaler):
                 if config_status.ok:
                     config.append({"method": "put", "url": self.url, "body": update_config})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 config.append({"method": "put", "url": self.url, "body": update_config})
+
+        return config
+
+    def config_update_monitor_binding(self, module, update_config):
+        """
+        This method is used to handle the logic for Ansible modules when the "state" is set to "present" and the
+        proposed config modifies an existing servicegroup to monitor binding. If the object's state needs to be updated,
+        the "state" key,value is popped from the update_config in order to prevent it from being included in a config
+        update when there are updates besides state change. The change_monitor_state method is then used to modify the
+        object's state. After the object's state matches the proposed state, a check is done to see if the update_config
+        has any keys other than the "name" keys (len > 2). If there are more updates to make, the put_config method is
+        used to push those to the Netscaler.
+        :param module: The AnsibleModule instance started by the task.
+        :param update_config: Type dict.
+                              The configuration to send to the Nitro API.
+        :return: The list of config dictionaries corresponding to the config returned by the Ansible module.
+        """
+        config = []
+
+        if "state" in update_config:
+            config_state = update_config.pop("state")[:-1].lower()
+            if not module.check_mode:
+                config_status = self.change_monitor_state(update_config["servicegroupname"],
+                                update_config["monitor_name"], config_state)
+                if config_status.ok:
+                    config.append({"method": "post", "url": config_status.url,
+                                   "body": {"servicegroupname": update_config["servicegroupname"],
+                                   "monitorname": update_config["monitor_name"]}})
+                else:
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Change Monitor Binding's State", netscaler_response=config_status.json(), logout=logout.ok)
+            else:
+                url = self.url + "lbmonitor?action={}".format(config_state)
+                config.append({"method": "post", "url": url,
+                               "body": {"servicegroupname": update_config["servicegroupname"],
+                               "monitorname": update_config["monitor_name"]}})
+
+        if len(update_config) > 2:
+            logout = self.logout()
+            module.fail_json(msg="The Netscaler Nitro API does not support modifying the Service Group to Monitor Bindings."
+                                 "In order to make an update, you will first need to Delete the Binding, then create a new Binding", logout=logout.ok)
 
         return config
 
@@ -759,16 +906,55 @@ class ServiceGroup(Netscaler):
         else:
             return "none", {}
 
+    @staticmethod
+    def get_diff_monitor_binding(proposed, existing):
+        """
+        This method is used to compare the proposed lbmonitor binding config with what currently exists on the Netscaler.
+        :param proposed: Type dict.
+                         A dictionary corresponding to the proposed configuration item. The dictionary must have a
+                         "name" key.
+        :param existing: Type dict.
+                         A dictionary corresponding to the existing configuration for the object. This can be retrieved
+                         using the get_existing_attrs method.
+        :return: A tuple indicating whether the config is a new object, will update an existing object, or make no
+                 changes, and a dict that corresponds to the body of a config request using the Nitro API.
+        """
+        diff = dict(set(proposed.items()).difference(existing.items()))
+
+        if diff == proposed:
+            return "new", proposed
+        elif diff:
+            diff["servicegroupname"] = proposed["servicegroupname"]
+            diff["monitor_name"] = proposed["monitor_name"]
+            return "update", diff
+        else:
+            return "none", {}
+
+    def get_monitor_binding(self, servicegroup_name, monitor_name):
+        """
+        This method is used to get a particular servicegroup to monitor binding.
+        :param servicegroup_name: Type str.
+                                  The name of the servicegroup object.
+        :param monitor_name: Type str.
+                             The name of the monitor object.
+        :return: A dictionary of the current servers bound to the servicegroup object. If no bindings
+                 exist, then an empty dictionary is returned.
+        """
+        url = self.url + self.api_endpoint + "_lbmonitor_binding/" + servicegroup_name + \
+              "?filter=monitor_name:{}".format(monitor_name)
+        response = self.session.get(url, headers=self.headers, verify=self.verify)
+
+        return response.json().get("servicegroup_lbmonitor_binding", [{}])[0]
+
     def get_monitor_bindings(self, object_name):
         """
         This method is used to get the servicegroup's current monitor bindings.
         :param object_name: Type str.
                             The name of the servicegroup object.
         :return: A list of dictionaries of the current servers bound to the servicegroup object. If no bindings
-                 exist, then an empty dictionary is returned.
+                 exist, then an empty list is returned.
         """
-        url = self.url + self.api_endpoint + "_lbmonitor_binding/" + object_name + \
-              "?attrs=servicegroupname,monitor_name,weight"
+        url = self.url + self.api_endpoint + "_lbmonitor_binding/" + object_name
         response = self.session.get(url, headers=self.headers, verify=self.verify)
 
         return response.json().get("servicegroup_lbmonitor_binding", [])
@@ -779,7 +965,7 @@ class ServiceGroup(Netscaler):
         :param object_name: Type str.
                             The name of the servicegroup object.
         :return: A list of dictionaries of the current servers bound to the servicegroup object. If no bindings
-                 exist, then an empty dictionary is returned.
+                 exist, then an empty list is returned.
         """
         url = self.url + self.api_endpoint + "_servicegroupmember_binding/" + object_name + \
               "?attrs=servicegroupname,servername,port,weight"
@@ -804,7 +990,8 @@ class ServiceGroup(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                logout = self.logout()
+                module.fail_json(msg="Unable to Remove Monitor Binding", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             url = self.url + self.api_endpoint + \
                   "_lbmonitor_binding?args=servicegroupname:{},monitor_name:{}".format(
@@ -832,7 +1019,8 @@ class ServiceGroup(Netscaler):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                logout = self.logout()
+                module.fail_json(msg="Unable to Remove Server Binding", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             url = self.url + self.api_endpoint + \
                   "_servicegroupmember_binding?args=servicegroupname:{},servername:{},port:{}".format(
@@ -878,18 +1066,18 @@ class ServiceGroup(Netscaler):
 
 def main():
     argument_spec = dict(
-        host=dict(required=True, type="str"),
+        host=dict(required=False, type="str"),
         port=dict(required=False, type="int"),
         username=dict(fallback=(env_fallback, ["ANSIBLE_NET_USERNAME"])),
         password=dict(fallback=(env_fallback, ["ANSIBLE_NET_PASSWORD"]), no_log=True),
-        use_ssl=dict(default=True, type="bool"),
-        validate_certs=dict(default=False, type="bool"),
+        use_ssl=dict(required=False, type="bool"),
+        validate_certs=dict(required=False, type="bool"),
         provider=dict(required=False, type="dict"),
-        state=dict(choices=["absent", "present"], default="present", type="str"),
+        state=dict(required=False, choices=["absent", "present"], type="str"),
         partition=dict(required=False, type="str"),
-        server_name=dict(required=True, type="str"),
-        server_port=dict(required=True, type="str"),
-        servicegroup_name=dict(required=True, type="str"),
+        server_name=dict(required=False, type="str"),
+        server_port=dict(required=False, type="str"),
+        servicegroup_name=dict(required=False, type="str"),
         weight=dict(required=False, type="str")
     )
 
@@ -906,14 +1094,21 @@ def main():
         if module.params.get(param) is None:
             module.params[param] = pvalue
             
+    # module specific args that can be represented as both str or int are normalized to Netscaler's representation for diff comparison in case provider is used  
     host = module.params["host"]
     partition = module.params["partition"]
     password = module.params["password"]
     port = module.params["port"]
     state = module.params["state"]
+    if not state:
+        state = "present"
     use_ssl = module.params["use_ssl"]
+    if use_ssl is None:
+        use_ssl = True
     username = module.params["username"]
     validate_certs = module.params["validate_certs"]
+    if validate_certs is None:
+        validate_certs = False
     service_port = module.params["server_port"]
     if service_port == "*":
         service_port = 65535
@@ -921,14 +1116,27 @@ def main():
         try:
             service_port = int(service_port)
         except ValueError:
-            module.fail_json(msg="'server_port' Must be a Number from 0 to 65535, or '*'")
+            module.fail_json(msg="The 'server_port' must be a number from 0 to 65535 or '*'")
+        except TypeError:
+            module.fail_json(msg="The 'server_port' is required and must be a number from 0 to 65535 or '*'")
+    weight = module.params["weight"]
+    if weight:
+        weight = str(weight)
 
     args = dict(
         port=service_port,
         servername=module.params["server_name"],
         servicegroupname=module.params["servicegroup_name"],
-        weight=module.params["weight"]
+        weight=weight
     )
+
+    # check for required values, this allows all values to be passed in provider; server_port is checked above
+    argument_check = dict(host=host, server_name=args["servername"], servicegroup_name=args["servicegroupname"])
+    for key, val in argument_check.items():
+        if not val:
+            module.fail_json(msg="The {} parameter is required".format(key))
+
+
     # "if isinstance(v, bool) or v" should be used if a bool variable is added to args
     proposed = dict((k, v) for k, v in args.items() if v)
 
@@ -939,12 +1147,13 @@ def main():
     session = ServiceGroup(host, username, password, use_ssl, validate_certs, **kwargs)
     session_login = session.login()
     if not session_login.ok:
-        module.fail_json(msg="Unable to login")
+        module.fail_json(msg="Unable to Login", netscaler_response=session_login.json())
 
     if partition:
         session_switch = session.switch_partition(partition)
         if not session_switch.ok:
-            module.fail_json(msg=session_switch.content, reason="Unable to Switch Partitions")
+            session_logout = session.logout()
+            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json(), logout=session_logout.ok)
 
     all_existing = session.get_server_bindings(proposed["servicegroupname"])
 
@@ -952,6 +1161,9 @@ def main():
         results = change_config(session, module, proposed, all_existing)
     else:
         results = delete_server_binding(session, module, proposed, all_existing)
+
+    session_logout = session.logout()
+    results["logout"] = session_logout.ok
 
     return module.exit_json(**results)
 
@@ -977,20 +1189,21 @@ def change_config(session, module, proposed, all_existing):
                             port=proposed["port"])
 
     for binding in all_existing:
-        if proposed_wcard == dict(servicegroupname=binding["servicegroupname"], servername=binding["servername"],
-                                  port=binding["port"]):
-            existing = proposed_wcard
-            break
-        elif proposed_minimum == dict(servicegroupname=binding["servicegroupname"], servername=binding["servername"],
-                                      port=binding["port"]):
-            existing = proposed
+        binding_minimum = dict(servicegroupname=binding["servicegroupname"], servername=binding["servername"], port=binding["port"])
+        if proposed_wcard == binding_minimum or proposed_minimum == binding_minimum:
+            existing = binding
             break
 
     if not existing:
         changed = True
         config = session.add_server_binding(module, proposed)
+    elif proposed.get("weight") and proposed["weight"] != existing["weight"]:
+        conflict = dict(existing_weight=existing["weight"], proposed_weight=proposed["weight"], partition=module.params["partition"])
+        session_logout = session.logout()
+        module.fail_json(msg="The Netscaler Nitro API does not support modifying a Server Binding; In order"
+                             "to make changes, first delete the binding, and then add with the new params.", conflict=conflict, logout=session_logout.ok)
 
-    return {"all_existing": all_existing, "changed": changed, "config": config, "existing": existing}
+    return dict(all_existing=all_existing, changed=changed, config=config, existing=existing)
 
 
 def delete_server_binding(session, module, proposed, all_existing):
@@ -1011,16 +1224,16 @@ def delete_server_binding(session, module, proposed, all_existing):
                             port=proposed["port"])
 
     for binding in all_existing:
-        if proposed_minimum == dict(servicegroupname=binding["servicegroupname"], servername=binding["servername"],
-                                    port=binding["port"]):
+        binding_minimum = dict(servicegroupname=binding["servicegroupname"], servername=binding["servername"], port=binding["port"])
+        if proposed_minimum == binding_minimum:
             changed = True
             config = session.remove_server_binding(module, proposed)
-            existing = proposed
+            existing = binding
 
     if not config:
         existing = {}
 
-    return {"all_existing": all_existing, "changed": changed, "config": config, "existing": existing}
+    return dict(all_existing=all_existing, changed=changed, config=config, existing=existing)
 
 
 if __name__ == "__main__":

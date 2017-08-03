@@ -91,6 +91,13 @@ options:
       - A comment to add to the object.
     required: false
     type: str
+  config_override:
+    description:
+      - Setting to True enables changing IP Addresses and Names
+      - Servers will be renamed if the IP Address is aleady being used in the same Traffic Domain by an object with a different name.
+      - Servers will have their IP Addresses changed if the Server Name is already in use but is mapped to a different IP Address.
+    required: false
+    type: bool
   ip_address:
      description:
        - The IP address of the Server Object.
@@ -107,7 +114,6 @@ options:
       - Disabled marks it out of service.
       - Enabled marks it serviceable.
     required: false
-    default: enabled
     type: str
     choices: ["disabled", "enabled"]
   traffic_domain:
@@ -159,6 +165,11 @@ config:
     type: list
     sample: [{"method": "post", "url": "https://netscaler/nitro/v1/config/server",
     "body": {"name": "server01", "ipaddress": "10.10.10.10"}}]
+logout:
+    description: The result from closing the session with the Netscaler. True means successful logout; False means unsuccessful logout.
+    returned: always
+    type: bool
+    sample: True
 '''
 
 import requests
@@ -200,14 +211,32 @@ class Netscaler(object):
         self.verify = verify
         self.api_endpoint = api_endpoint
         self.headers = {"Content-Type": "application/json"}
-        self.port = kwargs.get("port", "")
+        if "port" not in kwargs:
+            self.port = ""
+        else:
+            self.port = ":{}".format(kwargs["port"])
 
         if use_ssl:
-            self.url = "https:{port}//{lb}/nitro/v1/config/".format(port=self.port, lb=self.host)
-            self.stat_url = "https:{port}//{lb}/nitro/v1/stat/".format(port=self.port, lb=self.host)
+            self.url = "https://{lb}{port}/nitro/v1/config/".format(lb=self.host, port=self.port)
+            self.stat_url = "https://{lb}{port}/nitro/v1/stat/".format(lb=self.host, port=self.port)
         else:
-            self.url = "http:{port}//{lb}/nitro/v1/config/".format(port=self.port, lb=self.host)
-            self.stat_url = "http:{port}//{lb}/nitro/v1/stat/".format(port=self.port, lb=self.host)
+            self.url = "http://{lb}{port}/nitro/v1/config/".format(lb=self.host, port=self.port)
+            self.stat_url = "http://{lb}{port}/nitro/v1/stat/".format(lb=self.host, port=self.port)
+
+    def change_name(self, existing_name, proposed_name):
+        """
+        The purpose of this method is to change the name of a server object.
+        :param existing_name: Type str.
+                              The name of the server object to be renamed.
+        :param proposed_name: Type str.
+                              The new name of the server object.
+        :return: The response from the request to delete the object.
+        """
+        url = self.url + self.api_endpoint + "?action=rename"
+        body = {self.api_endpoint: {"name": existing_name, "newname":proposed_name}}
+        response = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return response
 
     def change_state(self, object_name, state):
         """
@@ -242,7 +271,8 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "delete", "url": config_status.url, "body": {}})
             else:
-                module.fail_json(msg=config_status.content)
+                logout = self.logout()
+                module.fail_json(msg="Unable to Delete Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             url = self.url + self.api_endpoint + "/" + object_name
             config.append({"method": "delete", "url": url, "body": {}})
@@ -266,9 +296,38 @@ class Netscaler(object):
             if config_status.ok:
                 config.append({"method": "post", "url": config_status.url, "body": new_config})
             else:
-                module.fail_json(msg=config_status.content)
+                logout = self.logout()
+                module.fail_json(msg="Unable to Add New Object", netscaler_response=config_status.json(), logout=logout.ok)
         else:
             config.append({"method": "post", "url": self.url + self.api_endpoint, "body": new_config})
+
+        return config
+
+    def config_rename(self, module, existing_name, proposed_name):
+        """
+        This method is used to handle the logic for Ansible modules when the "state" is set to "present" and the
+        proposed IP Address matches the IP Address of another Server in the same Traffic Domain. The change_name
+        method is used to post the configuration to the Netscaler.
+        :param module: The AnsibleModule instance started by the task.
+        :param existing_name: Type str.
+                              The current name of the Server object to be changed.
+        :param proposed_name: Type str.
+                              The name the Server object should be changed to.
+        :return: A list with config dictionary corresponding to the config returned by the Ansible module.
+        """
+        config = []
+
+        rename_config = {"name": existing_name, "newname": proposed_name}
+
+        if not module.check_mode:
+            config_status = self.change_name(existing_name, proposed_name)
+            if config_status.ok:
+                config.append({"method": "post", "url": config_status.url, "body": rename_config})
+            else:
+                logout = self.logout()
+                module.fail_json(msg="Unable to Rename Object", netscaler_response=config_status.json(), logout=logout.ok)
+        else:
+            config.append({"method": "post", "url": self.url + self.api_endpoint + "?action=rename", "body": rename_config})
 
         return config
 
@@ -296,7 +355,8 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "post", "url": config_status.url, "body": {"name": update_config["name"]}})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Change Object's State", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 url = self.url + self.api_endpoint + "?action={}".format(config_state)
                 config.append({"method": "post", "url": url, "body": {"name": update_config["name"]}})
@@ -307,7 +367,8 @@ class Netscaler(object):
                 if config_status.ok:
                     config.append({"method": "put", "url": self.url, "body": update_config})
                 else:
-                    module.fail_json(msg=config_status.content)
+                    logout = self.logout()
+                    module.fail_json(msg="Unable to Update Config", netscaler_response=config_status.json(), logout=logout.ok)
             else:
                 config.append({"method": "put", "url": self.url, "body": update_config})
 
@@ -502,6 +563,17 @@ class Netscaler(object):
 
         return login
 
+    def logout(self):
+        """
+        The logout method is used to close the established connection with the Netscaler device.
+        :return: The response from the logout request.
+        """
+        url = self.url + "logout"
+        body = {"logout": {}}
+        logout = self.session.post(url, json=body, headers=self.headers, verify=self.verify)
+
+        return logout
+
     def post_config(self, new_config):
         """
         This method is used to submit a configuration request to the Netscaler using the Nitro API.
@@ -587,29 +659,6 @@ class Server(Netscaler):
     def __init__(self, host, user, passw, secure=True, verify=False, api_endpoint="server", **kwargs):
         super(Server, self).__init__(host, user, passw, secure, verify, api_endpoint, **kwargs)
 
-    def check_duplicate_ip(self, proposed):
-        """
-        The purpose of this method is to identify if the proposed server has an "ipaddress" value that already exists in
-        the current partition and traffic domain, in order to prevent an invalid configuration request (server "name"
-        must be unique on a per partition basis, and "ipaddress" must be unique on a per traffic domain basis).
-        :param proposed: Type dict.
-                         The proposed server configuration.
-        :return: A dictionary with the information about colliding ipaddress. An empty dictionary is returned if all
-                 "ipaddress" values are unique.
-        """
-        ip_address = proposed["ipaddress"]
-        traffic_domain = proposed["td"]
-
-        colliding_ip_dict = {}
-        colliding_ip = self.get_server_by_ip_td(ip_address, traffic_domain)
-        if colliding_ip:
-            colliding_ip_dict["ip_address"] = proposed["ipaddress"]
-            colliding_ip_dict["traffic_domain"] = proposed["td"]
-            colliding_ip_dict["proposed_name"] = proposed["name"]
-            colliding_ip_dict["existing_name"] = colliding_ip["name"]
-
-        return colliding_ip_dict
-
     def get_all(self):
         """
         The purpose of this method is to retrieve every object's configuration for the instance's API endpoint.
@@ -653,23 +702,23 @@ class Server(Netscaler):
         return response.json().get("server", [{}])[0]
 
 
-
 def main():
     argument_spec = dict(
-        host=dict(required=True, type="str"),
+        host=dict(required=False, type="str"),
         port=dict(required=False, type="int"),
         username=dict(fallback=(env_fallback, ["ANSIBLE_NET_USERNAME"])),
         password=dict(fallback=(env_fallback, ["ANSIBLE_NET_PASSWORD"]), no_log=True),
-        use_ssl=dict(default=True, type="bool"),
-        validate_certs=dict(default=False, type="bool"),
+        use_ssl=dict(required=False, type="bool"),
+        validate_certs=dict(required=False, type="bool"),
         provider=dict(required=False, type="dict"),
-        state=dict(choices=["absent", "present"], default="present", type="str"),
+        state=dict(required=False, choices=["absent", "present"], type="str"),
         partition=dict(required=False, type="str"),
         comment=dict(required=False, type="str"),
+        config_override = dict(choices=[True, False], type="bool"),
         ip_address=dict(required=False, type="str"),
-        server_name=dict(required=True, type="str"),
-        server_state=dict(choices=["disabled", "enabled"], default="enabled", type="str"),
-        traffic_domain=dict(required=False, type="str", default="0")
+        server_name=dict(required=False, type="str"),
+        server_state=dict(choices=["disabled", "enabled"], type="str"),
+        traffic_domain=dict(required=False, type="str")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -684,23 +733,44 @@ def main():
     for param, pvalue in provider.items():
         if module.params.get(param) is None:
             module.params[param] = pvalue
-            
+
+    # module specific args that can be represented as both str or int are normalized to Netscaler's representation for diff comparison in case provider is used  
     host = module.params["host"]
     partition = module.params["partition"]
     password = module.params["password"]
     port = module.params["port"]
     state = module.params["state"]
+    if not state:
+        state = "present"
     use_ssl = module.params["use_ssl"]
+    if use_ssl is None:
+        use_ssl = True
     username = module.params["username"]
     validate_certs = module.params["validate_certs"]
-
+    if validate_certs is None:
+        validate_certs = False
+    server_state=module.params["server_state"]
+    if server_state:
+        server_state = server_state.upper()
+    traffic_domain = module.params["traffic_domain"]
+    if traffic_domain:
+        traffic_domain = str(traffic_domain)
+    else:
+        traffic_domain = "0"
+    
     args = dict(
         comment=module.params["comment"],
         ipaddress=module.params["ip_address"],
         name=module.params["server_name"],
-        state=module.params["server_state"].upper(),
-        td=module.params["traffic_domain"]
+        state=server_state,
+        td=traffic_domain
     )
+
+    # check for required values, this allows all values to be passed in provider
+    argument_check = dict(host=host, server_name=args["name"])
+    for key, val in argument_check.items():
+        if not val:
+            module.fail_json(msg="The {} parameter is required".format(key))
 
     # "if isinstance(v, bool) or v" should be used if a bool variable is added to args
     proposed = dict((k, v) for k, v in args.items() if v)
@@ -717,12 +787,13 @@ def main():
     session = Server(host, username, password, use_ssl, validate_certs, **kwargs)
     session_login = session.login()
     if not session_login.ok:
-        module.fail_json(msg="Unable to login")
+        module.fail_json(msg="Unable to Login", netscaler_response=session_login.json())
 
     if partition:
         session_switch = session.switch_partition(partition)
         if not session_switch.ok:
-            module.fail_json(msg=session_switch.content, reason="Unable to Switch Partitions")
+            session_logout = session.logout()
+            module.fail_json(msg="Unable to Switch Partitions", netscaler_response=session_switch.json(), logout=session_logout.ok)
 
     existing_attrs = args.keys()
     existing = session.get_existing_attrs(proposed["name"], existing_attrs)
@@ -731,6 +802,9 @@ def main():
         results = change_config(session, module, proposed, existing)
     else:
         results = delete_server(session, module, proposed["name"], existing)
+
+    session_logout = session.logout()
+    results["logout"] = session_logout.ok
 
     module.exit_json(**results)
 
@@ -753,28 +827,48 @@ def change_config(session, module, proposed, existing):
     """
     changed = False
     config = []
+    rename = []
 
     config_method, config_diff = Server.get_diff(proposed, existing)
     if "ipaddress" in config_diff:
-        dup_ip_check = session.check_duplicate_ip(proposed)
-        if dup_ip_check:
-            module.fail_json(msg="Unique names correspond to the same IP Address:\n{}".format(dup_ip_check))
+        ip = proposed["ipaddress"]
+        td = proposed.get("td")
+        dup_server = session.get_server_by_ip_td(ip, td)
+        if dup_server and not module.params["config_override"]:
+            dup_dict = dict(proposed_name=proposed["name"], existing_name=dup_server["name"], ip_address=ip,
+                            traffic_domain=td, partition=module.params["partition"])
+            session_logout = session.logout()
+            module.fail_json(msg="Changing a Server's Name requires setting the config_override param to True.", conflict=dup_dict, logout=session_logout.ok)
+        elif dup_server:
+            changed = True
+            rename = session.config_rename(module, dup_server["name"], proposed["name"])
+            new_existing = session.get_existing_attrs(proposed["name"], proposed.keys())
+            config_method, config_diff = Server.get_diff(proposed, new_existing)
 
     if config_method == "new":
         changed = True
         config = session.config_new(module, config_diff)
 
     elif config_method == "update":
-        if "ipaddress" in config_diff:
-            module.fail_json(msg="Updating IP Addresses is not Supported")
-
         if "td" in config_diff:
-            module.fail_json(msg="Updating a Server's Traffic Domain is not Supported")
+            conflict = dict(existing_traffic_domain=existing["td"], proposed_traffic_domain=proposed["td"], partition=module.params["partition"])
+            session_logout = session.logout()
+            module.fail_json(msg="Updating a Server's Traffic Domain is not Supported. This can be achieved by first deleting "
+                             "the Server, and then creating a Server with the changes.", conflict=conflict, logout=session_logout.ok)
+
+        if "ipaddress" in config_diff and not module.params["config_override"]:
+            dup_dict = dict(name=proposed["name"], proposed_ip=proposed["ipaddress"], existing_ip=existing["ipaddress"],
+                            traffic_domain=proposed.get("td"), partition=module.params["partition"])
+            session_logout = session.logout()
+            module.fail_json(msg="Updating a Server's IP Addresses requires setting the config_override param to True.", conflict=dup_dict, logout=session_logout.ok)
 
         changed = True
         config = session.config_update(module, config_diff)
+    
+    if rename:
+        config.append(rename[0])
 
-    return {"changed": changed, "config": config, "existing": existing}
+    return dict(changed=changed, config=config, existing=existing)
 
 
 def delete_server(session, module, proposed_name, existing):
@@ -796,7 +890,7 @@ def delete_server(session, module, proposed_name, existing):
         changed = True
         config = session.config_delete(module, proposed_name)
 
-    return {"changed": changed, "config": config, "existing": existing}
+    return dict(changed=changed, config=config, existing=existing)
 
 
 if __name__ == "__main__":
