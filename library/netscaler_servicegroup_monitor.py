@@ -26,7 +26,7 @@ DOCUMENTATION = '''
 ---
 module: netscaler_servicegroup_monitor
 version_added: "2.3"
-short_description: Manages service group to monitor bindings.
+short_description: Manages service group to monitor bindings
 description:
   - Manages Netscaler service group to monitor binding configurations using Nitro API.
 author: Jacob McGill (@jmcgill298)
@@ -82,17 +82,17 @@ options:
     type: str
   validate_certs:
     description:
-      - Determines whether to validate certs against a trusted certificate file (True), or accept all certs (False)
+      - Determines whether to validate certs against a trusted certificate file (True), or accept all certs (False).
     required: false
     default: False
     type: bool
   monitor_name:
     description:
       - The monitor name which is being bound to a service group.
-    required: True
+    required: true
     type: str
   monitor_state:
-    descritpion:
+    description:
       - The state of the monitor for the particular service group binding.
       - The API only supports enabling and disabling a monitor after it is created.
       - New bindings that are set to be disabled, will be created in an enabled state, then disabled.
@@ -102,12 +102,12 @@ options:
   servicegroup_name:
     description:
       - The service group name which the server is being bound to.
-    required: True
+    required: true
     type: str
   weight:
     description:
       - The weight to assing the servers in the Service Group.
-    required: False
+    required: false
     type: str
 '''
 

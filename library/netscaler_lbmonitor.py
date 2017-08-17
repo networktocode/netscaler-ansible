@@ -24,13 +24,12 @@ ANSIBLE_METADATA = {
 
 DOCUMENTATION = '''
 ---
-module: netscaler_monitor
+module: netscaler_lbmonitor
 version_added: "2.3"
 short_description: Manages Monitor resources and attributes
 description:
-  - Manages Netscaler Monitor configurations using Nitro API
+  - Manages Netscaler Monitor configurations using Nitro API.
 author: Jacob McGill (@jmcgill298)
-extends_documentation_fragment: netscaler
 options:
   host:
     description:

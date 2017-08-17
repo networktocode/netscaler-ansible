@@ -26,11 +26,11 @@ DOCUMENTATION = '''
 ---
 module: netscaler_save_config
 version_added: "2.3"
-short_description: Saves the running configuration to the Netscaler.
+short_description: Saves the running configuration to the Netscaler
 description:
   - Saves the running configuration to the Netscaler for the specified partition.
 author: Jacob McGill (@jmcgill298)
-oprtions:
+options:
   host:
     description:
       - The Netscaler's Address.
