@@ -28,7 +28,7 @@ module: netscaler_lbvserver_certkey
 version_added: "2.3"
 short_description: Manages lbvserver to cert key bindings
 description:
-  - Manages Netscaler lbvserver to cert key binding configurations using Nitro API
+  - Manages Netscaler lbvserver to cert key binding configurations using Nitro API.
 author: Jacob McGill (@jmcgill298)
 options:
   host:
@@ -82,7 +82,7 @@ options:
     type: str
   validate_certs:
     description:
-      - Determines whether to validate certs against a trusted certificate file (True), or accept all certs (False)
+      - Determines whether to validate certs against a trusted certificate file (True), or accept all certs (False).
     required: false
     default: False
     type: bool
@@ -100,7 +100,7 @@ options:
   crl_check:
     description:
       - The state of the CRL check parameter.
-    required:
+    required: false
     type: str
     choices: ["Mandatory", "Optional"]
   ocsp_check:
@@ -118,26 +118,26 @@ options:
   sni_cert:
     description:
       - Specifies if SNI processing is in use.
-    required:
+    required: false
     type: str
     choices: ["true", "false"]
   vserver_name:
     description:
       - The name of the vserver to bind the cert key to.
-    required: True
+    required: true
     type: str
 '''
 
 EXAMPLES = '''
 - name: Bind Service Group to Server
-  netscaler_lbvserver:
+  netscaler_lbvserver_certkey:
     host: "{{ inventory_hostname }}"
     username: "{{ username }}"
     password: "{{ password }}"
     cert_key_name: cert_key_app01
     vserver_name: vserver_app01
 - name: Bind Service Group to Server in Lab Partition
-  netscaler_lbvserver:
+  netscaler_lbvserver_certkey:
     host: "{{ inventory_hostname }}"
     username: "{{ username }}"
     password: "{{ password }}"
@@ -147,11 +147,6 @@ EXAMPLES = '''
     partition: Lab
     port: 8080
     use_ssl: False
-logout:
-    description: The result from closing the session with the Netscaler. True means successful logout; False means unsuccessful logout.
-    returned: always
-    type: bool
-    sample: True
 '''
 
 RETURN = '''
@@ -170,6 +165,11 @@ existing:
     returned: always
     type: dict
     sample: {}
+logout:
+    description: The result from closing the session with the Netscaler. True means successful logout; False means unsuccessful logout.
+    returned: always
+    type: bool
+    sample: True
 '''
 
 
