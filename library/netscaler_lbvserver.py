@@ -89,6 +89,7 @@ options:
   app_flow_log:
     description:
       - Enable logging of AppFlow information for the specified service group.
+      
     required: false
     type: str
     choices: ["disabled", "enabled"]
@@ -1035,7 +1036,7 @@ def main():
         lbvserver_state=dict(choices=["disabled", "enabled"], required=False, type="str"),
         persistence=dict(choices=VALID_PERSISTENCE_TYPES, required=False, type="str"),
         service_type=dict(choices=VALID_SERVICETYPES, required=False, type="str"),
-        traffic_domain=dict(required=False, type="str", default="0")
+        traffic_domain=dict(required=False, type="str")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
