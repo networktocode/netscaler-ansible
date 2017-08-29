@@ -15,6 +15,12 @@
           server_timeout: 300
           service_type: "tcp"
           servicegroup_name: "servicegroup01"
+          cip: "ENABLED"
+          cipheader: "header"
+          cka: "YES"
+          tcpb: "YES"
+          usip: "YES"
+          useproxyport: "YES"
 
       - name: CONFIG SERVICE GROUP AGAIN - NO CHANGE
         netscaler_servicegroup:
@@ -26,6 +32,12 @@
           server_timeout: 300
           service_type: "TCP"
           servicegroup_name: "servicegroup01"
+          client_header_state: "enabled"
+          client_header: "header"
+          client_keepalive: "yes"
+          tcp_buffer: "yes"
+          use_client_ip: "yes"
+          use_proxy_port: "yes"
 
       - name: CONFIG SERVICE GROUP AGAIN LESS PARAMS - NO CHANGE
         netscaler_servicegroup:
@@ -90,7 +102,8 @@
           server_timeout: 300
           service_type: "HTTP"
           servicegroup_name: "servicegroup02"
-          comment: "Comments Still Work" 
+          comment: "Comments Still Work"
+          cmp: "yes"
 
       - name: DISABLE A SERVICE GROUP - CHANGE
         netscaler_servicegroup:

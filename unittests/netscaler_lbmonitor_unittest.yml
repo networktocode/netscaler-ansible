@@ -14,6 +14,10 @@
           monitor_type: "tcp"
           monitor_dest_ip: "10.10.10.10"
           monitor_dest_port: "22"
+          lrtm: "enabled"
+          interval: 8
+          retries: 3
+          resptimeout: 5
 
       - name: CREATE TCP MONITOR AGAIN - NO CHANGE
         netscaler_lbmonitor:
@@ -24,6 +28,10 @@
           monitor_type: "TCP"
           monitor_dest_ip: "10.10.10.10"
           monitor_dest_port: "22"
+          least_response_time: "enabled"
+          probe_interval: 8
+          probe_retries: 3
+          probe_timeout: 5
 
       - name: CREATE TCP MONITOR AGAIN LESS PARAMS - NO CHANGE
         netscaler_lbmonitor:
@@ -222,6 +230,36 @@
           monitor_type: "PING"
           partition: "LAB"
 
+      - name: CREATE ECV MONITOR - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor06"
+          monitor_type: "tcp-ecv"
+          recv: "healthy"
+          send: "health check"
+
+      - name: CREATE ECV MONITOR - NO CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor06"
+          monitor_type: "tcp-ecv"
+          ecv_recv: "healthy"
+          ecv_send: "health check"
+
+      - name: MODIFY ECV MONITOR - CHANGE
+        netscaler_lbmonitor:
+          host: "{{ inventory_hostname }}"
+          username: "{{ username }}"
+          password: "{{ password }}" 
+          monitor_name: "monitor06"
+          monitor_type: "tcp-ecv"
+          ecv_recv: "changed"
+          ecv_send: "changed"
+
       - name: CREATE MONITOR NO HOST - FAIL
         netscaler_lbmonitor:
           username: "{{ username }}"
@@ -285,6 +323,7 @@
           - monitor03
           - monitor04
           - monitor05
+          - monitor06
 
       - name: CLEANUP MONITORS IN PARTITION - CHANGE
         netscaler_lbmonitor:
