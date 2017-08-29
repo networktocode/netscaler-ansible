@@ -92,11 +92,34 @@ options:
       - Custom headers to add to the monitor request
     required: false
     type: str
+  ecv_recv:
+    description:
+      - String expected from the server for the service to be marked as UP.
+      - Applicable to TCP-ECV, HTTP-ECV, and UDP-ECV monitors.
+    aliases: ["recv"]
+    required: false
+    type: str
+  ecv_send:
+    description:
+      - String to send to the service.
+      - Applicable to TCP-ECV, HTTP-ECV, and UDP-ECV monitors.
+    aliases: ["send"]
+    required: false
+    type: str
   http_request:
     description:
       - The request to send to the server
     required: false
     type: str
+  least_response_time:
+    description:
+      - Calculate the least response times for bound services.
+      - If this parameter is not enabled, the appliance does not learn the response times of the bound services.
+      - Also used for LRTM load balancing.
+    aliases: ["lrtm"]
+    required: false
+    type: str
+    choices: ["enabled", "disabled"]
   monitor_dest_ip:
     description:
       - The IP address to monitor.
@@ -152,6 +175,30 @@ options:
       - The username used to authenticate with the monitored service.
     required: false
     type: str
+  probe_interval:
+    description:
+      - Time interval between two successive probes.
+      - Must be greater than the value of C(probe_timeout).
+    aliases: ["interval"]
+    required: false
+    type: int
+  probe_retries:
+    description:
+      - Maximum number of probes to send to establish the state of a service for which a monitoring probe failed.
+      - Minimum value = 1
+      - Maximum value = 127
+    aliases: ["retries"]
+    required: false
+    type: int
+  probe_timeout:
+    description:
+      - Amount of time for which the appliance must wait before it marks a probe as FAILED.
+      - Must be less than the value of C(probe_interval).
+      - Minimum value = 1
+      - Maximum value = 20939
+    aliases: ["resptimeout"]
+    required: false
+    type: int
   response_code:
     description:
       - The HTTP response code expected back from the monitored resource.
@@ -166,46 +213,6 @@ options:
     type: str
     default: add
     choices: ["add", "remove"]
-  send:
-    description:
-      - String to send to the service. Applicable to TCP-ECV, HTTP-ECV, and UDP-ECV monitors.
-    required: false
-    type: str
-  recv:
-    description:
-      - String expected from the server for the service to be marked as UP. Applicable to TCP-ECV, HTTP-ECV, and UDP-ECV monitors.
-    required: false
-    type: str
-  lrtm:
-    description:
-      - Calculate the least response times for bound services.
-      - If this parameter is not enabled, the appliance does not learn the response times of the bound services.
-      - Also used for LRTM load balancing.
-    required: false
-    type: str
-    choices: ["ENABLED", "DISABLED"]
-  interval:
-    description:
-      - Time interval between two successive probes. Must be greater than the value of Response Time-out.
-    required: false
-    default: 5
-    type: int
-  resptimeout:
-    description:
-      - Amount of time for which the appliance must wait before it marks a probe as FAILED. Must be less than the value specified for the Interval parameter.
-      - Minimum value = 1
-      - Maximum value = 20939
-    required: false
-    default: 2
-    type: int
-  retries:
-    description:
-      - Maximum number of probes to send to establish the state of a service for which a monitoring probe failed.
-      - Minimum value = 1
-      - Maximum value = 127
-    required: false
-    default: 3
-    type: int
 '''
 
 EXAMPLES = '''
@@ -976,7 +983,7 @@ class LBMonitor(Netscaler):
             return "none", {}
 
             
-
+ENABLED_DISABLED = ["ENABLED", "DISABLED", "enabled", "disabled"]
 VALID_TYPES = ["PING", "TCP", "HTTP", "TCP-ECV", "HTTP-ECV", "UDP-ECV", "DNS", "FTP", "LDNS-PING", "LDNS-TCP",
                "LDNS-DNS", "RADIUS", "USER", "HTTP-INLINE", "SIP-UDP", "SIP-TCP", "LOAD", "FTP-EXTENDED", "SMTP",
                "SNMP", "NNTP", "MYSQL", "MYSQL-ECV", "MSSQL-ECV", "ORACLE-ECV", "LDAP", "POP3", "CITRIX-XML-SERVICE",
@@ -1002,24 +1009,24 @@ def main():
         state=dict(choices=["absent", "present"], type="str"),
         partition=dict(required=False, type="str"),
         custom_headers=dict(required=False, type="str"),
+        ecv_recv=dict(required=False, aliases=["recv"], type="str"),
+        ecv_send=dict(required=False, aliases=["send"], type="str"),
         http_request=dict(required=False, type="str"),
+        least_response_time=dict(choices=ENABLED_DISABLED, aliases=["lrtm"], required=False, type="str"),
         monitor_dest_ip=dict(required=False, type="str"),
         monitor_dest_port=dict(required=False, type="int"),
         monitor_name=dict(required=False, type="str"),
         monitor_password=dict(required=False, type="str", no_log=True),
         monitor_secondary_password=dict(required=False, type="str", no_log=True),
-        monitor_state=dict(choices=["disabled", "enabled"], required=False, type="str"),
+        monitor_state=dict(choices=ENABLED_DISABLED, required=False, type="str"),
         monitor_type=dict(choices=VALID_TYPES, required=False, type="str"),
         monitor_use_ssl=dict(choices=["YES", "NO", "yes", "no"], required=False, type="str"),
         monitor_username=dict(required=False, type="str"),
+        probe_interval=dict(required=False, aliases=["interval"], type="int"),
+        probe_retries=dict(required=False, aliases=["retries"], type="int"),
+        probe_timeout=dict(required=False, aliases=["resptimeout"], type="int"),
         response_code=dict(required=False, type="list"),
-        response_code_action=dict(choices=["add", "remove"], required=False, type="str", default="add"),
-        send=dict(required=False, type="str"),
-        recv=dict(required=False, type="str"),
-        lrtm=dict(choices=["ENABLED", "DISABLED"], required=False, type="str"),
-        interval=dict(default=5,required=False, type="int"),
-        resptimeout=dict(default=2,required=False, type="int"),
-        retries=dict(default=3,required=False, type="int")
+        response_code_action=dict(choices=["add", "remove"], required=False, type="str")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -1050,6 +1057,9 @@ def main():
     validate_certs = module.params["validate_certs"]
     if validate_certs is None:
         validate_certs = False
+    least_response_time = module.params["least_response_time"]
+    if least_response_time:
+        least_response_time = least_response_time.upper()
     monitor_dest_port = module.params["monitor_dest_port"]
     if monitor_dest_port:
         monitor_dest_port = int(monitor_dest_port)
@@ -1062,6 +1072,15 @@ def main():
     monitor_use_ssl = module.params["monitor_use_ssl"]
     if monitor_use_ssl:
         monitor_use_ssl = monitor_use_ssl.upper()
+    probe_interval = module.params["probe_interval"]
+    if probe_interval:
+        probe_interval = int(probe_interval)
+    probe_retries = module.params["probe_retries"]
+    if probe_retries:
+        probe_retries = int(probe_retries)
+    probe_timeout = module.params["probe_timeout"]
+    if probe_timeout:
+        probe_timeout = int(probe_timeout)
     response_code = module.params["response_code"]
     if response_code and isinstance(response_code, list):
         response_code = [str(code).strip() for code in response_code]
@@ -1076,20 +1095,20 @@ def main():
         destip=module.params["monitor_dest_ip"],
         destport=monitor_dest_port,
         httprequest=module.params["http_request"],
+        interval = probe_interval,
+        lrtm = least_response_time,
         monitorname=module.params["monitor_name"],
         password=module.params["monitor_password"],
+        recv = module.params["ecv_recv"],
         respcode=response_code,
+        resptimeout = probe_timeout,
+        retries = probe_retries,
         secondarypassword=module.params["monitor_secondary_password"],
         secure=monitor_use_ssl,
+        send = module.params["ecv_send"],
         state=monitor_state,
         type=monitor_type,
-        username=module.params["monitor_username"],
-        send = module.params["send"],
-        recv = module.params["recv"],
-        lrtm = module.params["lrtm"],
-        interval = module.params["interval"],
-        resptimeout = module.params["resptimeout"],
-        retries = module.params["retries"]
+        username=module.params["monitor_username"]
     )
 
     # check for required values, this allows all values to be passed in provider
