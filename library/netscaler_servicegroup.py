@@ -86,6 +86,27 @@ options:
     required: false
     default: False
     type: bool
+  client_header:
+    description:
+      - Name of the HTTP header whose value must be set to the IP address of the client.
+      - Used with C(client_header_state).
+    aliases: ["cipheader"]
+    required: false
+    type: str
+  client_header_state:
+    description:
+      - Insert the Client IP header in requests forwarded to the service.
+    aliases: ["cip"]
+    required: false
+    type: str
+    choices: ["enabled", "disabled"]
+  client_keepalive:
+    description:
+      - Enable client keep-alive for the service group.
+    aliases: ["cka"]
+    required: false
+    type: str
+    choices: ["yes", "no"]
   client_timeout:
     description:
       - Seconds to wait before terminating a client session.
@@ -97,6 +118,13 @@ options:
       - A comment about the servicegroup.
     required: false
     type: str
+  compression:
+    description:
+      - Enable compression for the specified service.
+    aliases: ["cmp"]
+    required: false
+    type: str
+    choices: ["yes", "no"]
   max_client:
     description:
       - maximum number of simultaneous open connections
@@ -137,12 +165,35 @@ options:
       - Enabled marks it serviceable.
     required: false
     choices: ["disabled", "enabled"]
+  tcp_buffer:
+    description:
+      - Enable TCP buffering for the service group.
+    required: false
+    aliases: ["tcpb"]
+    type: str
+    choices: ["yes", "no"]
   traffic_domain:
     description:
       - The traffic domain associated with the servicegroup
     required: false
     type: str
     default: "0"
+  use_client_ip:
+    description:
+      - Use client's IP address as the source IP address when initiating connection to the server.
+    required: false
+    aliases: ["usip"]
+    type: str
+    choices: ["yes", "no"]
+  use_proxy_port:
+    description:
+      - Use the proxy port as the source port when initiating connections with the server.
+      - When C(no), the client-side connection port is used as the source port for the server-side connection.
+      - Note: This parameter is available only when the C(usip) is C(yes).
+    aliases: ["useproxyport"]
+    required: false
+    type: str
+    choices: ["yes", "no"]
 '''
 
 EXAMPLES = '''
@@ -1103,6 +1154,7 @@ class ServiceGroup(Netscaler):
         return response
 
 
+ENABLED_DISABLED = ["ENABLED", "DISABLED", "enabled", "disabled"]
 VALID_SERVICETYPES = ["HTTP", "FTP", "TCP", "UDP", "SSL", "SSL_BRIDGE", "SSL_TCP", "DTLS", "NNTP", "RPCSVR", "DNS",
                       "ADNS", "SNMP", "RTSP", "DHCPRA", "ANY", "SIP_UDP", "SIP_TCP", "SIP_SSL", "DNS_TCP", "ADNS_TCP",
                       "MYSQL", "MSSQL", "ORACLE", "RADIUS", "RADIUSLISTENER", "RDP", "DIAMETER", "SSL_DIAMETER", "TFTP",
@@ -1111,6 +1163,7 @@ VALID_SERVICETYPES = ["HTTP", "FTP", "TCP", "UDP", "SSL", "SSL_BRIDGE", "SSL_TCP
                       "sip_udp", "sip_tcp", "sip_ssl", "dns_tcp", "adns_tcp", "mysql", "mssql", "oracle", "radius",
                       "radiuslistener", "rdp", "diameter", "ssl_diameter", "tftp", "smpp", "pptp", "gre", "syslogtcp",
                       "syslogudp", "fix"]
+YES_NO = ["YES", "NO", "yes", "no"]
 
 
 def main():
@@ -1124,15 +1177,22 @@ def main():
         provider=dict(required=False, type="dict"),
         state=dict(choices=["absent", "present"], type="str"),
         partition=dict(required=False, type="str"),
+        client_header=dict(required=False, aliases=["cipheader"], type="str"),
+        client_header_state=dict(choices=ENABLED_DISABLED, aliases=["cip"], required=False, type="str"),
+        client_keepalive=dict(choices=YES_NO, aliases=["cka"], required=False, type="str"),
         client_timeout=dict(required=False, type="int"),
         comment=dict(required=False, type="str"),
+        compression=dict(choices=YES_NO, aliases=["cmp"], required=False, type="str"),
         max_client=dict(required=False, type="str"),
         max_req=dict(required=False, type="str"),
         server_timeout=dict(required=False, type="int"),
         service_type=dict(choices=VALID_SERVICETYPES, required=False, type="str"),
         servicegroup_name=dict(required=False, type="str"),
-        servicegroup_state=dict(required=False, choices=["disabled", "enabled"], type="str"),
-        traffic_domain=dict(required=False, type="str")
+        servicegroup_state=dict(required=False, choices=ENABLED_DISABLED, type="str"),
+        tcp_buffer=dict(choices=YES_NO, aliases=["tcpb"], required=False, type="str"),
+        traffic_domain=dict(required=False, type="str"),
+        use_client_ip=dict(choices=YES_NO, aliases=["usip"], required=False, type="str"),
+        use_proxy_port=dict(choices=YES_NO, aliases=["useproxyport"], required=False, type="str")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -1163,9 +1223,18 @@ def main():
     validate_certs = module.params["validate_certs"]
     if validate_certs is None:
         validate_certs = False
+    client_header_state = module.params["client_header_state"]
+    if client_header_state:
+        client_header_state = client_header_state.upper()
+    client_keepalive = module.params["client_keepalive"]
+    if client_keepalive:
+        client_keepalive = client_keepalive.upper()
     client_timeout = module.params["client_timeout"]
     if client_timeout:
         client_timeout = int(client_timeout)
+    compression = module.params["compression"]
+    if compression:
+        compression = compression.upper()
     max_client = module.params["max_client"]
     if max_client:
         max_client = str(max_client)
@@ -1181,15 +1250,27 @@ def main():
     servicegroup_state = module.params["servicegroup_state"]
     if servicegroup_state:
         servicegroup_state = servicegroup_state.upper()
+    tcp_buffer = module.params["tcp_buffer"]
+    if tcp_buffer:
+        tcp_buffer = tcp_buffer.upper()
     traffic_domain = module.params["traffic_domain"]
     if traffic_domain:
         traffic_domain = str(traffic_domain)
     else:
         traffic_domain = "0"
-
+    use_client_ip = module.params["use_client_ip"]
+    if use_client_ip:
+        use_client_ip = use_client_ip.upper()
+    use_proxy_port = module.params["use_proxy_port"]
+    if use_proxy_port:
+        use_proxy_port = use_proxy_port.upper()
 
     args = dict(
+        cip=client_header_state,
+        cipheader=module.params["client_header"],
+        cka=client_keepalive,
         clttimeout=client_timeout,
+        cmp=compression,
         comment=module.params["comment"],
         maxclient=max_client,
         maxreq=max_req,
@@ -1197,7 +1278,10 @@ def main():
         servicetype=service_type,
         servicegroupname=module.params["servicegroup_name"],
         state=servicegroup_state,
-        td=traffic_domain
+        tcpb=tcp_buffer,
+        td=traffic_domain,
+        usip=use_client_ip,
+        useproxyport=use_proxy_port
     )
 
     # check for required values, this allows all values to be passed in provider

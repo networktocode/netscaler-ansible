@@ -86,6 +86,13 @@ options:
     required: false
     default: False
     type: bool
+  app_flow_log:
+    description:
+      - Enable logging of AppFlow information for the specified service group.
+      
+    required: false
+    type: str
+    choices: ["disabled", "enabled"]
   backup_lbvserver:
     description:
       - The name of the backup lbvserver
@@ -984,14 +991,8 @@ class LBVServer(Netscaler):
         return response
 
 
-
-VALID_SERVICETYPES = ["HTTP", "FTP", "TCP", "UDP", "SSL", "SSL_BRIDGE", "SSL_TCP", "DTLS", "NNTP", "DNS", "DHCPRA",
-                      "ANY", "SIP_UDP", "SIP_TCP", "SIP_SSL", "DNS_TCP", "RTSP", "PUSH", "SSL_PUSH", "RADIUS", "RDP",
-                      "MYSQL", "MSSQL", "DIAMETER", "SSL_DIAMETER", "TFTP", "ORACLE", "SMPP", "SYSLOGTCP", "SYSLOGUDP",
-                      "FIX", "http", "ftp", "tcp", "udp", "ssl", "ssl_bridge", "ssl_tcp", "dtls", "nntp", "dns", "dhcpra",
-                      "any", "sip_udp", "sip_tcp", "sip_ssl", "dns_tcp", "rtsp", "push", "ssl_push", "radius", "rdp",
-                      "mysql", "mssql", "diameter", "ssl_diameter", "tftp", "oracle", "smpp", "syslogtcp", "syslogudp",
-                      "fix"]
+VALID_APP_FLOW = ["DISABLED", "ENABLED", "enabled", "disabled"]
+VALID_CONN_FAILOVER = ["DISABLED", "STATEFUL", "STATELESS", "disabled", "stateful", "stateless"]
 VALID_LBMETHODS = ["ROUNDROBIN", "LEASTCONNECTION", "LEASTRESPONSETIME", "URLHASH", "DOMAINHASH", "DESTINATIONIPHASH",
                    "SOURCEIPHASH", "SRCIPDESTIPHASH", "LEASTBANDWIDTH", "LEASTPACKETS", "TOKEN", "SRCIPSRCPORTHASH",
                    "LRTM", "CALLIDHASH", "CUSTOMLOAD", "LEASTREQUEST", "AUDITLOGHASH", "STATICPROXIMITY", "roundrobin",
@@ -1002,7 +1003,14 @@ VALID_PERSISTENCE_TYPES = ["SOURCEIP", "COOKIEINSERT", "SSLSESSION", "RULE", "UR
                            "SRCIPDESTIP", "CALLID", "RTSPSID", "DIAMETER", "FIXSESSION", "NONE", "sourceip", "cookieinsert",
                            "sslsession", "rule", "urlpassive", "customserverid", "destip", "srcipdestip", "callid", "rtspsid",
                            "diameter", "fixsession", "none"]
-VALID_CONN_FAILOVER = ["DISABLED", "STATEFUL", "STATELESS", "disabled", "stateful", "stateless"]
+VALID_SERVICETYPES = ["HTTP", "FTP", "TCP", "UDP", "SSL", "SSL_BRIDGE", "SSL_TCP", "DTLS", "NNTP", "DNS", "DHCPRA",
+                      "ANY", "SIP_UDP", "SIP_TCP", "SIP_SSL", "DNS_TCP", "RTSP", "PUSH", "SSL_PUSH", "RADIUS", "RDP",
+                      "MYSQL", "MSSQL", "DIAMETER", "SSL_DIAMETER", "TFTP", "ORACLE", "SMPP", "SYSLOGTCP", "SYSLOGUDP",
+                      "FIX", "http", "ftp", "tcp", "udp", "ssl", "ssl_bridge", "ssl_tcp", "dtls", "nntp", "dns", "dhcpra",
+                      "any", "sip_udp", "sip_tcp", "sip_ssl", "dns_tcp", "rtsp", "push", "ssl_push", "radius", "rdp",
+                      "mysql", "mssql", "diameter", "ssl_diameter", "tftp", "oracle", "smpp", "syslogtcp", "syslogudp",
+                      "fix"]
+
 
 def main():
     argument_spec = dict(
@@ -1015,6 +1023,7 @@ def main():
         provider=dict(required=False, type="dict"),
         state=dict(choices=["absent", "present"], type="str"),
         partition=dict(required=False, type="str"),
+        app_flow_log=dict(choices=VALID_APP_FLOW, required=False, type="str"),
         backup_lbvserver=dict(required=False, type="str"),
         client_timeout=dict(required=False, type="str"),
         comment=dict(required=False, type="str"),
@@ -1028,7 +1037,7 @@ def main():
         lbvserver_state=dict(choices=["disabled", "enabled"], required=False, type="str"),
         persistence=dict(choices=VALID_PERSISTENCE_TYPES, required=False, type="str"),
         service_type=dict(choices=VALID_SERVICETYPES, required=False, type="str"),
-        traffic_domain=dict(required=False, type="str"),
+        traffic_domain=dict(required=False, type="str")
     )
 
     module = AnsibleModule(argument_spec, supports_check_mode=True)
@@ -1059,6 +1068,9 @@ def main():
     validate_certs = module.params["validate_certs"]
     if validate_certs is None:
         validate_certs = False
+    app_flow_log = module.params["app_flow_log"]
+    if app_flow_log:
+        app_flow_log = app_flow_log.upper()
     client_timeout = module.params["client_timeout"]
     if client_timeout:
         client_timeout = str(client_timeout)
@@ -1087,6 +1099,7 @@ def main():
         traffic_domain = "0"
 
     args = dict(
+        appflowlog=app_flow_log,
         backupvserver=module.params["backup_lbvserver"],
         clttimeout=client_timeout,
         comment=module.params["comment"],
