@@ -86,6 +86,12 @@ options:
     required: false
     default: False
     type: bool
+  app_flow_log:
+    description:
+      - Enable logging of AppFlow information for the specified service group.
+    required: false
+    type: str
+    choices: ["disabled", "enabled"]
   backup_lbvserver:
     description:
       - The name of the backup lbvserver
@@ -169,13 +175,6 @@ options:
     choices: ["http", "ftp", "tcp", "udp", "ssl", "ssl_bridge", "ssl_tcp", "dtls", "nntp", "dns", "dhcpra", "any",
               "sip_udp", "sip_tcp", "sip_ssl", "dns_tcp", "rtsp", "push", "ssl_push", "radius", "rdp", "mysql",
               "mssql", "diameter", "ssl_diameter", "tftp", "oracle", "smpp", "syslogtcp", "syslogudp", "fix"]
-  app_flow_log:
-    description:
-      - Enable logging of AppFlow information for the specified service group.
-    required: false
-    type: str
-    choices: ["DISABLED", "ENABLED"]
-    default: "ENABLED"
   traffic_domain:
     description:
       - The traffic domain associated with the servicegroup
@@ -991,7 +990,8 @@ class LBVServer(Netscaler):
         return response
 
 
-
+VALID_APP_FLOW = ["DISABLED", "ENABLED", "enabled", "disabled"]
+VALID_CONN_FAILOVER = ["DISABLED", "STATEFUL", "STATELESS", "disabled", "stateful", "stateless"]
 VALID_SERVICETYPES = ["HTTP", "FTP", "TCP", "UDP", "SSL", "SSL_BRIDGE", "SSL_TCP", "DTLS", "NNTP", "DNS", "DHCPRA",
                       "ANY", "SIP_UDP", "SIP_TCP", "SIP_SSL", "DNS_TCP", "RTSP", "PUSH", "SSL_PUSH", "RADIUS", "RDP",
                       "MYSQL", "MSSQL", "DIAMETER", "SSL_DIAMETER", "TFTP", "ORACLE", "SMPP", "SYSLOGTCP", "SYSLOGUDP",
@@ -1009,7 +1009,6 @@ VALID_PERSISTENCE_TYPES = ["SOURCEIP", "COOKIEINSERT", "SSLSESSION", "RULE", "UR
                            "SRCIPDESTIP", "CALLID", "RTSPSID", "DIAMETER", "FIXSESSION", "NONE", "sourceip", "cookieinsert",
                            "sslsession", "rule", "urlpassive", "customserverid", "destip", "srcipdestip", "callid", "rtspsid",
                            "diameter", "fixsession", "none"]
-VALID_CONN_FAILOVER = ["DISABLED", "STATEFUL", "STATELESS", "disabled", "stateful", "stateless"]
 
 def main():
     argument_spec = dict(
@@ -1022,6 +1021,7 @@ def main():
         provider=dict(required=False, type="dict"),
         state=dict(choices=["absent", "present"], type="str"),
         partition=dict(required=False, type="str"),
+        app_flow_log=dict(choices=VALID_APP_FLOW, required=False, type="str"),
         backup_lbvserver=dict(required=False, type="str"),
         client_timeout=dict(required=False, type="str"),
         comment=dict(required=False, type="str"),
@@ -1035,7 +1035,6 @@ def main():
         lbvserver_state=dict(choices=["disabled", "enabled"], required=False, type="str"),
         persistence=dict(choices=VALID_PERSISTENCE_TYPES, required=False, type="str"),
         service_type=dict(choices=VALID_SERVICETYPES, required=False, type="str"),
-        app_flow_log=dict(choices=["ENABLED", "DISABLED"], required=False, type="str", default="ENABLED"),
         traffic_domain=dict(required=False, type="str", default="0")
     )
 
@@ -1067,6 +1066,9 @@ def main():
     validate_certs = module.params["validate_certs"]
     if validate_certs is None:
         validate_certs = False
+    app_flow_log = module.params["app_flow_log"]
+    if app_flow_log:
+        app_flow_log = app_flow_log.upper()
     client_timeout = module.params["client_timeout"]
     if client_timeout:
         client_timeout = str(client_timeout)
@@ -1107,7 +1109,7 @@ def main():
         state=lbvserver_state,
         persistencetype=persistence,
         servicetype=service_type,
-        appflowlog=module.params["app_flow_log"],
+        appflowlog=app_flow_log,
         td=traffic_domain
     )
 
