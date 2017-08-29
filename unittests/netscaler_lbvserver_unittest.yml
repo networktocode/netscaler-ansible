@@ -150,6 +150,7 @@
           lbmethod: "ROUNDROBIN"
           lbvserver_port: "*"
           persistence: "SRCIPDESTIP"
+          app_flow_log: "disabled"
 
       - name: CONFIG LB VSERVER ANY SERVICE AGAIN - NO CHANGE
         netscaler_lbvserver:
@@ -163,6 +164,7 @@
           lbmethod: "ROUNDROBIN"
           lbvserver_port: "*"
           persistence: "SRCIPDESTIP"
+          app_flow_log: "disabled"
 
       - name: DELETE LB VSERVER - CHANGE
         netscaler_lbvserver:
