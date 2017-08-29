@@ -993,13 +993,6 @@ class LBVServer(Netscaler):
 
 VALID_APP_FLOW = ["DISABLED", "ENABLED", "enabled", "disabled"]
 VALID_CONN_FAILOVER = ["DISABLED", "STATEFUL", "STATELESS", "disabled", "stateful", "stateless"]
-VALID_SERVICETYPES = ["HTTP", "FTP", "TCP", "UDP", "SSL", "SSL_BRIDGE", "SSL_TCP", "DTLS", "NNTP", "DNS", "DHCPRA",
-                      "ANY", "SIP_UDP", "SIP_TCP", "SIP_SSL", "DNS_TCP", "RTSP", "PUSH", "SSL_PUSH", "RADIUS", "RDP",
-                      "MYSQL", "MSSQL", "DIAMETER", "SSL_DIAMETER", "TFTP", "ORACLE", "SMPP", "SYSLOGTCP", "SYSLOGUDP",
-                      "FIX", "http", "ftp", "tcp", "udp", "ssl", "ssl_bridge", "ssl_tcp", "dtls", "nntp", "dns", "dhcpra",
-                      "any", "sip_udp", "sip_tcp", "sip_ssl", "dns_tcp", "rtsp", "push", "ssl_push", "radius", "rdp",
-                      "mysql", "mssql", "diameter", "ssl_diameter", "tftp", "oracle", "smpp", "syslogtcp", "syslogudp",
-                      "fix"]
 VALID_LBMETHODS = ["ROUNDROBIN", "LEASTCONNECTION", "LEASTRESPONSETIME", "URLHASH", "DOMAINHASH", "DESTINATIONIPHASH",
                    "SOURCEIPHASH", "SRCIPDESTIPHASH", "LEASTBANDWIDTH", "LEASTPACKETS", "TOKEN", "SRCIPSRCPORTHASH",
                    "LRTM", "CALLIDHASH", "CUSTOMLOAD", "LEASTREQUEST", "AUDITLOGHASH", "STATICPROXIMITY", "roundrobin",
@@ -1010,6 +1003,14 @@ VALID_PERSISTENCE_TYPES = ["SOURCEIP", "COOKIEINSERT", "SSLSESSION", "RULE", "UR
                            "SRCIPDESTIP", "CALLID", "RTSPSID", "DIAMETER", "FIXSESSION", "NONE", "sourceip", "cookieinsert",
                            "sslsession", "rule", "urlpassive", "customserverid", "destip", "srcipdestip", "callid", "rtspsid",
                            "diameter", "fixsession", "none"]
+VALID_SERVICETYPES = ["HTTP", "FTP", "TCP", "UDP", "SSL", "SSL_BRIDGE", "SSL_TCP", "DTLS", "NNTP", "DNS", "DHCPRA",
+                      "ANY", "SIP_UDP", "SIP_TCP", "SIP_SSL", "DNS_TCP", "RTSP", "PUSH", "SSL_PUSH", "RADIUS", "RDP",
+                      "MYSQL", "MSSQL", "DIAMETER", "SSL_DIAMETER", "TFTP", "ORACLE", "SMPP", "SYSLOGTCP", "SYSLOGUDP",
+                      "FIX", "http", "ftp", "tcp", "udp", "ssl", "ssl_bridge", "ssl_tcp", "dtls", "nntp", "dns", "dhcpra",
+                      "any", "sip_udp", "sip_tcp", "sip_ssl", "dns_tcp", "rtsp", "push", "ssl_push", "radius", "rdp",
+                      "mysql", "mssql", "diameter", "ssl_diameter", "tftp", "oracle", "smpp", "syslogtcp", "syslogudp",
+                      "fix"]
+
 
 def main():
     argument_spec = dict(
@@ -1098,6 +1099,7 @@ def main():
         traffic_domain = "0"
 
     args = dict(
+        appflowlog=app_flow_log,
         backupvserver=module.params["backup_lbvserver"],
         clttimeout=client_timeout,
         comment=module.params["comment"],
@@ -1110,7 +1112,6 @@ def main():
         state=lbvserver_state,
         persistencetype=persistence,
         servicetype=service_type,
-        appflowlog=app_flow_log,
         td=traffic_domain
     )
 
