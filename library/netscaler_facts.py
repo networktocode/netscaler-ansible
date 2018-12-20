@@ -99,37 +99,37 @@ options:
 EXAMPLES = '''
 - name: Gather All Facts
   netscaler_facts:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
 - name: Limit Facts with Includes
   netscaler_facts:
-    host: : "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: : "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     gather_subset:
       - lbvserver_stats
       - lbvserver_config
 - name: Limit Facts with Exclude
   netscaler_facts:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     gather_subset:
       - "!config"
 - name: Gather Full Config
   netscaler_facts:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     config_state: "deleted"
     config_scope: true
     partition: Lab
 - name: Gather System Data
   netscaler_facts:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     uss_ssl: False
     port: 8080
 '''

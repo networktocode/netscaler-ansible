@@ -127,16 +127,16 @@ options:
 EXAMPLES = '''
 - name: Config Server Object
   netscaler_server:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     server_name: "server01"
     ip_address: "10.10.10.10"
 - name: Config Server Object in Lab Partition
   netscaler_server:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     server_name: "server02"
     ip_address: "10.10.10.11"
     partition: "Lab"
@@ -144,9 +144,9 @@ EXAMPLES = '''
     port: 8080
 - name: Delete Server Object
   netscaler_server:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     state: "absent"
     server_name: "server01"
     ip_address: "10.10.10.10"

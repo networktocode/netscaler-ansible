@@ -217,9 +217,9 @@ options:
 EXAMPLES = '''
 - name: Config Monitor
   netscaler_lbmonitor:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     monitor_name: "monitor_app01"
     monitor_type: "http"
     monitor_use_ssl: "yes"
@@ -228,23 +228,23 @@ EXAMPLES = '''
     http_request: "HEAD /monitorcheck.html"
     response_code: "200-202"
 - name: Remove Response Code
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     monitor_name: "monitor_app01"
     response_code: "202"
     response_code_action: "remove"
 - name: Config Monitor in Lab Partition
   netscaler_lbmonitor:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     monitor_name: "monitor_lab01"
 - name: Delete Monitor
   netscaler_lbmonitor:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     state: "deleted"
     monitor_name: "monitor_app01"
     validate_certs: True
