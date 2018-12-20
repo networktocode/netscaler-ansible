@@ -131,16 +131,16 @@ options:
 EXAMPLES = '''
 - name: Bind Service Group to Server
   netscaler_lbvserver_certkey:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     cert_key_name: cert_key_app01
     vserver_name: vserver_app01
 - name: Bind Service Group to Server in Lab Partition
   netscaler_lbvserver_certkey:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     cert_key_name: cert_key_app02
     vserver_name: vserver_app02
     ca_cert: true

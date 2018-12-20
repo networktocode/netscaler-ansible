@@ -187,9 +187,9 @@ options:
 EXAMPLES = '''
 - name: Config Lbvserver Object
   netscaler_lbvserver:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     lbvserver_name: "lbvsvr_app01"
     ip_address: "10.10.10.21"
     service_type: "any"
@@ -197,9 +197,9 @@ EXAMPLES = '''
     lbmethod: "roundrobin"
 - name: Config Backup Lbvserver Object
   netscaler_lbvserver:
-    host: : "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: : "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     lbvserver_name: "lbvsvr_app02"
     ip_address: "0.0.0.0"
     service_type: "SSL"
@@ -211,9 +211,9 @@ EXAMPLES = '''
     comment: app02 backup vserver
 - name: Config Server Object in Lab Partition
   netscaler_lbvserver:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     lbvserver_name: "lbvsvr_app02"
     backup_lbvserver: "lbvsvr_app02_backup"
     ip_address: "10.10.10.22"
@@ -226,9 +226,9 @@ EXAMPLES = '''
     comment: app02 vserver
 - name: Delete Lbvserver Object
   netscaler_lbvserver:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     state: "deleted"
     lbvserver_name: "lbvsvr_app01"
     validate_certs: True

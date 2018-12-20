@@ -8,9 +8,9 @@
     tasks:
       - name: TASK 1 - ENSURE SERVICE GROUPS ARE DEPLOYED
         netscaler_servicegroup:
-          host: "{{ inventory_hostname }}"
-          username: "{{ username }}"
-          password: "{{ password }}"
+          host: "{{ ansible_host }}"
+          username: "{{ ansible_user }}"
+          password: "{{ ansible_password }}"
           servicegroup_name: "{{ item.name }}"
           service_type: "{{ item.service_type }}"
           comment: "{{ item.comment | default('') }}"
@@ -18,9 +18,9 @@
 
       - name: TASK 2 - ENSURE LB VSERVERS ARE DEPLOYED
         netscaler_lbvserver:
-          host: "{{ inventory_hostname }}"
-          username: "{{ username }}"
-          password: "{{ password }}"
+          host: "{{ ansible_host }}"
+          username: "{{ ansible_user }}"
+          password: "{{ ansible_password }}"
           backup_lbvserver: "{{ item.backup_vserver | default('') }}"
           lbvserver_name: "{{ item.name }}"
           ip_address: "{{ item.ip_address }}"
@@ -34,9 +34,9 @@
 
       - name: TASK 3 - ENSURE MONITORS ARE DEPLOYED
         netscaler_lbmonitor:
-          host: "{{ inventory_hostname }}"
-          username: "{{ username }}"
-          password: "{{ password }}"
+          host: "{{ ansible_host }}"
+          username: "{{ ansible_user }}"
+          password: "{{ ansible_password }}"
           monitor_name: "{{ item.name }}"
           monitor_type: "{{ item.type }}"
           http_request: "{{ item.request | default('') }}"
@@ -55,18 +55,18 @@
     tasks:
       - name: TASK 1 - ENSURE VSEVERS ARE BOUND TO SERVICEGROUPS
         netscaler_lbvserver_servicegroup:
-          host: "{{ inventory_hostname }}"
-          username: "{{ username }}"
-          password: "{{ password }}"
+          host: "{{ ansible_host }}"
+          username: "{{ ansible_user }}"
+          password: "{{ ansible_password }}"
           lbvserver_name: "{{ item.vserver_name }}"
           servicegroup_name: "{{ item.servicegroup_name }}"
         with_items: "{{ bindings.vserver_to_servicegroup }}"
 
       - name: TASK 2 - ENSURE SERVICEGROUPS ARE BOUND TO SERVERS
         netscaler_servicegroup_server:
-          host: "{{ inventory_hostname }}"
-          username: "{{ username }}"
-          password: "{{ password }}"
+          host: "{{ ansible_host }}"
+          username: "{{ ansible_user }}"
+          password: "{{ ansible_password }}"
           servicegroup_name: "{{ item.servicegroup_name }}"
           server_name: "{{ item.server_name }}"
           server_port: "{{ item.port }}"
@@ -74,9 +74,9 @@
 
       - name: TASK 3 - ENSURE SERVICEGROUPS ARE BOUND TO MONITORS
         netscaler_servicegroup_monitor:
-          host: "{{ inventory_hostname }}"
-          username: "{{ username }}"
-          password: "{{ password }}"
+          host: "{{ ansible_host }}"
+          username: "{{ ansible_user }}"
+          password: "{{ ansible_password }}"
           servicegroup_name: "{{ item.servicegroup_name }}"
           monitor_name: "{{ item.monitor_name }}"
         with_items: "{{ bindings.servicegroup_to_monitors }}"

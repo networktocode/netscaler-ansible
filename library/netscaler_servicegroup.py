@@ -199,17 +199,17 @@ options:
 EXAMPLES = '''
 - name: Config Servicegroup Object
   netscaler_servicegroup:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     servicegroup_name: "svcgrp_app01"
     client_timeout: 240
     server_timeout: 300
 - name: Config Servicegroup Object in Lab Partition
   netscaler_servicegroup:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     servicegroup_name: "svcgrp_app02"
     partition: "Lab"
     use_ssl: False
@@ -217,9 +217,9 @@ EXAMPLES = '''
     comment: app02 servicegroup
 - name: Delete Servicegroup Object
   netscaler_servicegroup:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     state: "deleted"
     servicegroup_name: "svcgrp_app01"
     validate_certs: True

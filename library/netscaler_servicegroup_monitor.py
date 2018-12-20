@@ -114,16 +114,16 @@ options:
 EXAMPLES = '''
 - name: Bind Service Group to Monitor
   netscaler_lbvserver:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     monitor_name: monitor_app01
     servicegroup_name: svcgrp_app01
 - name: Bind Service Group to Monitor in Lab Partition
   netscaler_lbvserver:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
     monitor_name: monitor_app02
     servicegroup_name: svcgrp_app02
     partition: Lab

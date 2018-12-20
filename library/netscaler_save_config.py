@@ -82,9 +82,9 @@ options:
 EXAMPLES = '''
 - name: Bind Service Group to Server
   netscaler_lbvserver:
-    host: "{{ inventory_hostname }}"
-    username: "{{ username }}"
-    password: "{{ password }}"
+    host: "{{ ansible_host }}"
+    username: "{{ ansible_user }}"
+    password: "{{ ansible_password }}"
 '''
 
 RETURN = '''

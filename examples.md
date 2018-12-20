@@ -3,27 +3,28 @@
 ### Inventory File
 ```
 [all:vars]
-username=user
-password=secret
+ansible_python_interpreter=python
+ansible_user=username
+ansible_password=password
 
 [netscaler]
-netscaler_lb01
+netscaler1 ansible_host=10.1.1.1
 ```
 
 ### Playbook
 ```
 ---
 - name: CONFIGURE LOAD BALANCE VIP
-  hosts: all
+  hosts: netscaler
   connection: local
   gather_facts: False
 
   tasks:
     - name: CONFIGURE SERVERS
       netscaler_server:
-        host: "{{ inventory_hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        host: "{{ ansible_host }}"
+        username: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
         server_name: "{{ item.name }}"
         ip_address: "{{ item.ip }}"
         comment: "{{ item.comment }}"
@@ -37,17 +38,17 @@ netscaler_lb01
 
     - name: CONFIGURE SERVICE GROUP
       netscaler_servicegroup:
-        host: "{{ inventory_hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        host: "{{ ansible_host }}"
+        username: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
         servicegroup_name: "sg_app01"
         service_type: "SSL"
 
     - name: CONFIGURE VSERVER
       netscaler_lbvserver:
-        host: "{{ inventory_hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        host: "{{ ansible_host }}"
+        username: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
         lbvserver_name: "vserver_app01"
         ip_address: "10.1.10.21"
         lbvserver_port: 443
@@ -57,9 +58,9 @@ netscaler_lb01
 
     - name: CONFIGURE MONITOR
       netscaler_lbmonitor:
-        host: "{{ inventory_hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        host: "{{ ansible_host }}"
+        username: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
         monitor_name: "mon_app01"
         monitor_type: "HTTP"
         monitor_use_ssl: "YES"
@@ -70,9 +71,9 @@ netscaler_lb01
 
     - name: BIND SERVICE GROUP TO SERVER
       netscaler_servicegroup_server:
-        host: "{{ inventory_hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        host: "{{ ansible_host }}"
+        username: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
         servicegroup_name: "sg_app01"
         server_name: "{{ item }}"
         server_port: 443
@@ -82,33 +83,33 @@ netscaler_lb01
 
     - name: BIND SERVICE GROUP TO MONITOR
       netscaler_servicegroup_monitor:
-        host: "{{ inventory_hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        host: "{{ ansible_host }}"
+        username: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
         servicegroup_name: "sg_app01"
         monitor_name: "mon_app01"
 
     - name: BIND VSERVER TO SERVICE GROUP
       netscaler_lbvserver_servicegroup:
-        host: "{{ inventory_hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        host: "{{ ansible_host }}"
+        username: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
         lbvserver_name: "vserver_app01"
         servicegroup_name: "sg_app01"
 
     - name: BIND VSERVER TO CERT KEY
       netscaler_vserver_certkey:
-        host: "{{ inventory_hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        host: "{{ ansible_host }}"
+        username: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
         vserver_name: "vserver_app01"
         cert_key_name: "ck_app01"
 
     - name: SAVE CONFIG
       netscaler_save_config:
-        host: "{{ inventory_hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        host: "{{ ansible_host }}"
+        username: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
 ```
 
 ## Netscaler Facts
@@ -122,15 +123,15 @@ netscaler_lb01
   tasks:
     - name: GET ALL FACTS
       netscaler_facts:
-        host: "{{ inventory_hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        host: "{{ ansible_host }}"
+        username: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
 
     - name: GET SOME FACTS USING INCLUDE METHOD
       netscaler_facts:
-        host: "{{ inventory_hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        host: "{{ ansible_host }}"
+        username: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
         gather_subset:
           - "hardware_data"
           - "interface_data"
@@ -138,18 +139,18 @@ netscaler_lb01
 
     - name: GET SOME FACTS USING EXCLUDE METHOD
       netscaler_facts:
-        host: "{{ inventory_hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        host: "{{ ansible_host }}"
+        username: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
         gather_subset:
           - "!config"
           - "!server_config"
 
     - name: GET ONLY SYSTEM FACTS
       netscaler_facts:
-        host: "{{ inventory_hostname }}"
-        username: "{{ username }}"
-        password: "{{ password }}"
+        host: "{{ ansible_host }}"
+        username: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
         gather_subset:
           - "!all"
 ```

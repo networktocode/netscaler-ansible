@@ -8,9 +8,9 @@
     tasks:
       - name: TASK 1 - ENSURE SERVER OBJECTS ARE DEPLOYED
         netscaler_server:
-          host: "{{ inventory_hostname }}"
-          username: "{{ username }}"
-          password: "{{ password }}"
+          host: "{{ ansible_host }}"
+          username: "{{ ansible_user }}"
+          password: "{{ ansible_password }}"
           server_name: "{{ item.name }}"
           ip_address: "{{ item.ip_address }}"
           comment: "{{ item.comment | default('') }}"
@@ -24,9 +24,9 @@
     tasks:
       - name: TASK 1 - ENSURE SERVICEGROUPS ARE BOUND TO SERVERS
         netscaler_servicegroup_server:
-          host: "{{ inventory_hostname }}"
-          username: "{{ username }}"
-          password: "{{ password }}"
+          host: "{{ ansible_host }}"
+          username: "{{ ansible_user }}"
+          password: "{{ ansible_password }}"
           servicegroup_name: "{{ item.servicegroup_name }}"
           server_name: "{{ item.server_name }}"
           server_port: "{{ item.port }}"
